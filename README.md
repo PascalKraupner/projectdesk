@@ -1,4 +1,4 @@
-# ProjectDesk
+# Project Desk
 
 Lightweight freelance project tracker. Manage projects, log time, share progress with clients.
 
@@ -30,6 +30,8 @@ This will:
 7. Build frontend assets
 
 Open [http://localhost](http://localhost).
+
+Mailpit (email testing) is available at [http://localhost:8025](http://localhost:8025).
 
 ## Daily Use
 

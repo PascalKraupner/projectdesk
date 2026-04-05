@@ -10,6 +10,18 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
+        <!-- Theme (prevent flash) -->
+        <script>
+            (function() {
+                var stored = localStorage.getItem('vueuse-color-scheme');
+                if (stored === 'dark' ||
+                    ((!stored || stored === 'auto') &&
+                     window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                }
+            })();
+        </script>
+
         <!-- Scripts -->
         @routes
         @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])

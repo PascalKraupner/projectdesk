@@ -11,4 +11,9 @@ class ProjectService
     {
         return Project::with('client')->latest()->get();
     }
+
+    public function find(int $id): Project
+    {
+        return Project::with('client')->findOrFail($id);
+    }
 }

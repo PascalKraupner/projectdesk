@@ -42,7 +42,11 @@ const statusClass = (status) => {
                     </TableHeader>
                     <TableBody>
                         <TableRow v-for="project in projects" :key="project.id">
-                            <TableCell class="font-medium">{{ project.title }}</TableCell>
+                            <TableCell class="font-medium">
+                                <Link :href="route('projects.show', project.id)" class="hover:text-primary">
+                                    {{ project.title }}
+                                </Link>
+                            </TableCell>
                             <TableCell>{{ project.client?.name || '—' }}</TableCell>
                             <TableCell>
                                 <Badge variant="outline" :class="statusClass(project.status)" class="capitalize">{{ project.status }}</Badge>

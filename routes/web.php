@@ -11,6 +11,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
     Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
+    Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

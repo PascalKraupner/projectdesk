@@ -14,7 +14,12 @@ class ProjectService
 
     public function find(int $id): Project
     {
-        return Project::with('client')->findOrFail($id);
+        return Project::with([
+            'client',
+            'timeLogs' => fn ($q) => $q->latest('started_at'),
+        ])
+            ->withSum('timeLogs as total_seconds', 'duration_seconds')
+            ->findOrFail($id);
     }
 
     /** @param  array<string, mixed>  $data */

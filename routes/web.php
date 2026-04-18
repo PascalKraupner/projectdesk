@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth')->group(function () {
     Route::get('/', DashboardController::class)->name('dashboard');
 
-    Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
+    Route::resource('clients', ClientController::class)->except(['show']);
     Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
     Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
 

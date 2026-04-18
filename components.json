@@ -1,7 +1,6 @@
 {
   "$schema": "https://shadcn-vue.com/schema.json",
   "style": "default",
-  "base": "reka",
   "typescript": false,
   "tailwind": {
     "config": "tailwind.config.js",

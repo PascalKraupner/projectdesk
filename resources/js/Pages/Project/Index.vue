@@ -1,11 +1,17 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Badge } from '@/Components/ui/badge';
+import { Button } from '@/Components/ui/button';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/Components/ui/table';
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
+    AlertDialogTitle, AlertDialogTrigger,
+} from '@/Components/ui/alert-dialog';
 import { ProjectStatus } from '@/Enums/ProjectStatus';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 
 defineProps({
     projects: Array,
@@ -18,6 +24,12 @@ const statusClass = (status) => {
         [ProjectStatus.Completed]: 'border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400',
     }[status] || '';
 };
+
+const destroy = (project) => {
+    router.delete(route('projects.destroy', project.id), {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
@@ -25,9 +37,14 @@ const statusClass = (status) => {
 
     <AuthenticatedLayout>
         <template #header>
-            <h2 class="text-xl font-semibold leading-tight text-foreground">
-                Projects
-            </h2>
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-semibold leading-tight text-foreground">
+                    Projects
+                </h2>
+                <Button as-child size="sm">
+                    <Link :href="route('projects.create')">New Project</Link>
+                </Button>
+            </div>
         </template>
 
         <div class="py-12">
@@ -38,12 +55,13 @@ const statusClass = (status) => {
                             <TableHead>Title</TableHead>
                             <TableHead>Client</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead class="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         <TableRow v-for="project in projects" :key="project.id">
                             <TableCell class="font-medium">
-                                <Link :href="route('projects.show', project.id)" class="hover:text-primary">
+                                <Link :href="route('projects.show', project.id)">
                                     {{ project.title }}
                                 </Link>
                             </TableCell>
@@ -51,9 +69,37 @@ const statusClass = (status) => {
                             <TableCell>
                                 <Badge variant="outline" :class="statusClass(project.status)" class="capitalize">{{ project.status }}</Badge>
                             </TableCell>
+                            <TableCell class="text-right">
+                                <div class="flex justify-end gap-2">
+                                    <Button as-child variant="outline" size="sm">
+                                        <Link :href="route('projects.edit', project.id)">Edit</Link>
+                                    </Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger as-child>
+                                            <Button variant="destructive" size="sm">
+                                                Delete
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Delete {{ project.title }}?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This action cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction @click="destroy(project)">
+                                                    Delete
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                            </TableCell>
                         </TableRow>
                         <TableRow v-if="!projects.length">
-                            <TableCell colspan="3" class="text-center text-muted-foreground">
+                            <TableCell colspan="4" class="text-center text-muted-foreground">
                                 No projects yet.
                             </TableCell>
                         </TableRow>

@@ -29,7 +29,10 @@ class ProjectController extends Controller
     {
         return Inertia::render('Project/Create', [
             'clients' => Client::orderBy('name')->get(['id', 'name']),
-            'statuses' => ProjectStatus::cases(),
+            'statuses' => array_map(
+                fn (ProjectStatus $s) => ['value' => $s->value, 'label' => ucfirst($s->value)],
+                ProjectStatus::cases(),
+            ),
         ]);
     }
 
@@ -52,7 +55,10 @@ class ProjectController extends Controller
         return Inertia::render('Project/Edit', [
             'project' => $project,
             'clients' => Client::orderBy('name')->get(['id', 'name']),
-            'statuses' => ProjectStatus::cases(),
+            'statuses' => array_map(
+                fn (ProjectStatus $s) => ['value' => $s->value, 'label' => ucfirst($s->value)],
+                ProjectStatus::cases(),
+            ),
         ]);
     }
 

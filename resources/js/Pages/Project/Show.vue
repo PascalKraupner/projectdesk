@@ -4,14 +4,23 @@ import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Separator } from '@/Components/ui/separator';
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
+    AlertDialogTitle, AlertDialogTrigger,
+} from '@/Components/ui/alert-dialog';
 import { ProjectStatus } from '@/Enums/ProjectStatus';
 import { useTimer } from '@/Composables/useTimer';
 import { Play, Pause, Square } from 'lucide-vue-next';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
     project: Object,
 });
+
+const destroy = () => {
+    router.delete(route('projects.destroy', props.project.id));
+};
 
 const { isRunning, display, start, pause, stop } = useTimer();
 
@@ -29,7 +38,7 @@ const statusClass = (status) => {
 
     <AuthenticatedLayout>
         <template #header>
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
                     <h2 class="text-xl font-semibold leading-tight text-foreground">
                         {{ project.title }}
@@ -38,9 +47,31 @@ const statusClass = (status) => {
                         {{ project.status }}
                     </Badge>
                 </div>
-                <span class="text-sm text-muted-foreground">
-                    {{ project.client?.name }}
-                </span>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-muted-foreground">
+                        {{ project.client?.name }}
+                    </span>
+                    <Button as-child variant="outline" size="sm">
+                        <Link :href="route('projects.edit', project.id)">Edit</Link>
+                    </Button>
+                    <AlertDialog>
+                        <AlertDialogTrigger as-child>
+                            <Button variant="destructive" size="sm">Delete</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Delete {{ project.title }}?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction @click="destroy">Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
             </div>
         </template>
 

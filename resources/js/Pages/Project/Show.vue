@@ -390,7 +390,7 @@ const openEditEntry = (log) => {
                                     </Button>
                                     <AlertDialog>
                                         <AlertDialogTrigger as-child>
-                                            <Button variant="ghost" size="sm" class="text-destructive hover:text-destructive">
+                                            <Button variant="ghost" size="sm" class="text-destructive hover:text-destructive dark:text-red-400 dark:hover:text-red-300">
                                                 Revoke
                                             </Button>
                                         </AlertDialogTrigger>

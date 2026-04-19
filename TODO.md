@@ -1,7 +1,7 @@
 # TODO
 
 ## Polish
-- [ ] Create simple logo and use on app and as favicon set
+- [x] Create simple logo and use on app and as favicon set
 - [ ] NativePHP for desktop/mobile app
 
 ## Features

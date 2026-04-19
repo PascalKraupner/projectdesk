@@ -366,9 +366,15 @@ const openEditEntry = (log) => {
                     </CardHeader>
                     <CardContent>
                         <div v-if="share_url" class="space-y-3">
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-3">
                                 <Input :model-value="share_url" readonly class="font-mono text-xs" />
-                                <Button variant="outline" size="icon" @click="copyShareUrl" :title="copyState === 'copied' ? 'Copied!' : 'Copy link'">
+                                <Button
+                                    variant="outline"
+                                    size="icon-lg"
+                                    class="shrink-0 p-3"
+                                    @click="copyShareUrl"
+                                    :title="copyState === 'copied' ? 'Copied!' : 'Copy link'"
+                                >
                                     <Copy class="h-4 w-4" />
                                 </Button>
                             </div>

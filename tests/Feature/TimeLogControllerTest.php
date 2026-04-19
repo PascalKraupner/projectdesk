@@ -123,6 +123,95 @@ class TimeLogControllerTest extends TestCase
         $this->assertNull($log->fresh()->note);
     }
 
+    public function test_store_manual_creates_a_completed_log_with_duration(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create();
+
+        $this->actingAs($user)
+            ->post("/projects/{$project->id}/time-logs/manual", [
+                'started_at' => '2026-04-19 09:00:00',
+                'ended_at' => '2026-04-19 10:30:00',
+                'note' => 'Worked on invoices',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $log = TimeLog::first();
+        $this->assertSame($project->id, $log->project_id);
+        $this->assertNotNull($log->ended_at);
+        $this->assertSame(5400, $log->duration_seconds);
+        $this->assertSame('Worked on invoices', $log->note);
+    }
+
+    public function test_store_manual_does_not_block_when_a_timer_is_running(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create();
+        TimeLog::factory()->running()->create(['project_id' => $project->id]);
+
+        $this->actingAs($user)
+            ->post("/projects/{$project->id}/time-logs/manual", [
+                'started_at' => '2026-04-19 09:00:00',
+                'ended_at' => '2026-04-19 09:30:00',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseCount('time_logs', 2);
+    }
+
+    public function test_store_manual_validates_end_after_start(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create();
+
+        $this->actingAs($user)
+            ->post("/projects/{$project->id}/time-logs/manual", [
+                'started_at' => '2026-04-19 10:00:00',
+                'ended_at' => '2026-04-19 09:00:00',
+            ])
+            ->assertSessionHasErrors('ended_at');
+
+        $this->assertDatabaseCount('time_logs', 0);
+    }
+
+    public function test_update_manual_updates_times_and_recomputes_duration(): void
+    {
+        $user = User::factory()->create();
+        $log = TimeLog::factory()->create([
+            'started_at' => '2026-04-19 09:00:00',
+            'ended_at' => '2026-04-19 09:30:00',
+            'duration_seconds' => 1800,
+            'note' => 'Old',
+        ]);
+
+        $this->actingAs($user)
+            ->patch("/time-logs/{$log->id}/manual", [
+                'started_at' => '2026-04-19 14:00:00',
+                'ended_at' => '2026-04-19 15:15:00',
+                'note' => 'New',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $log->refresh();
+        $this->assertSame(4500, $log->duration_seconds);
+        $this->assertSame('New', $log->note);
+    }
+
+    public function test_update_manual_blocks_editing_a_running_log(): void
+    {
+        $user = User::factory()->create();
+        $log = TimeLog::factory()->running()->create();
+
+        $this->expectException(\RuntimeException::class);
+
+        $this->withoutExceptionHandling()
+            ->actingAs($user)
+            ->patch("/time-logs/{$log->id}/manual", [
+                'started_at' => '2026-04-19 09:00:00',
+                'ended_at' => '2026-04-19 10:00:00',
+            ]);
+    }
+
     public function test_destroy_deletes_the_log(): void
     {
         $user = User::factory()->create();
@@ -161,7 +250,9 @@ class TimeLogControllerTest extends TestCase
         $log = TimeLog::factory()->create();
 
         $this->post("/projects/{$project->id}/time-logs")->assertRedirect('/login');
+        $this->post("/projects/{$project->id}/time-logs/manual")->assertRedirect('/login');
         $this->patch("/time-logs/{$log->id}")->assertRedirect('/login');
+        $this->patch("/time-logs/{$log->id}/manual")->assertRedirect('/login');
         $this->delete("/time-logs/{$log->id}")->assertRedirect('/login');
     }
 }

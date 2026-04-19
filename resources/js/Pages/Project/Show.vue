@@ -14,7 +14,8 @@ import {
 } from '@/Components/ui/alert-dialog';
 import { ProjectStatus } from '@/Enums/ProjectStatus';
 import { Input } from '@/Components/ui/input';
-import { Play, Square, Trash2 } from 'lucide-vue-next';
+import ManualTimeEntryDialog from '@/Components/ManualTimeEntryDialog.vue';
+import { Pencil, Play, Plus, Square, Trash2 } from 'lucide-vue-next';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 
@@ -120,6 +121,19 @@ const saveNote = (log) => {
 
 const destroyProject = () => {
     router.delete(route('projects.destroy', props.project.id));
+};
+
+const manualDialogOpen = ref(false);
+const manualDialogLog = ref(null);
+
+const openAddEntry = () => {
+    manualDialogLog.value = null;
+    manualDialogOpen.value = true;
+};
+
+const openEditEntry = (log) => {
+    manualDialogLog.value = log;
+    manualDialogOpen.value = true;
 };
 
 const statusClass = (status) => {
@@ -276,8 +290,12 @@ const statusClass = (status) => {
 
                 <!-- Time logs -->
                 <Card>
-                    <CardHeader>
+                    <CardHeader class="flex flex-row items-center justify-between space-y-0">
                         <CardTitle class="text-sm font-medium text-muted-foreground">Time logs</CardTitle>
+                        <Button variant="outline" size="sm" @click="openAddEntry">
+                            <Plus class="mr-1 h-4 w-4" />
+                            Add entry
+                        </Button>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -318,27 +336,32 @@ const statusClass = (status) => {
                                         </button>
                                     </TableCell>
                                     <TableCell class="text-right">
-                                        <AlertDialog>
-                                            <AlertDialogTrigger as-child>
-                                                <Button variant="ghost" size="icon-sm">
-                                                    <Trash2 class="h-4 w-4" />
-                                                </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Delete this log?</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        This action cannot be undone.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction @click="destroy(log)">
-                                                        Delete
-                                                    </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
+                                        <div class="flex items-center justify-end gap-1">
+                                            <Button variant="ghost" size="icon-sm" @click="openEditEntry(log)">
+                                                <Pencil class="h-4 w-4" />
+                                            </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger as-child>
+                                                    <Button variant="ghost" size="icon-sm">
+                                                        <Trash2 class="h-4 w-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Delete this log?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This action cannot be undone.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction @click="destroy(log)">
+                                                            Delete
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                                 <TableRow v-if="!completedLogs.length">
@@ -352,5 +375,11 @@ const statusClass = (status) => {
                 </Card>
             </div>
         </div>
+
+        <ManualTimeEntryDialog
+            v-model:open="manualDialogOpen"
+            :project-id="project.id"
+            :log="manualDialogLog"
+        />
     </AuthenticatedLayout>
 </template>

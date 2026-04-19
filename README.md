@@ -69,27 +69,32 @@ Then: `sail artisan ...`, `sail npm run dev`, etc.
 
 ## Production
 
-Lives at [projectdesk.kraupner.me](https://projectdesk.kraupner.me), fronted by Traefik on `vps1`.
+Auto-deployed via GitHub Actions to a self-hosted VPS behind Traefik.
 
 ### Deploy flow
 
 Every push to `main` triggers `.github/workflows/deploy.yml`:
 
 1. **test** — runs the PHPUnit suite on a disposable SQLite DB
-2. **build** — builds the multi-stage `Dockerfile` and pushes `ghcr.io/<owner>/projectdesk:latest` + `:sha-<commit>`
-3. **deploy** — SSHes to `vps1`, pulls the new image, restarts the stack, runs migrations, and warms the app caches
+2. **build** — builds the multi-stage `Dockerfile` and pushes `ghcr.io/<owner>/<repo>:latest` + `:sha-<commit>`
+3. **deploy** — SSHes to the server, pulls the new image, runs migrations, and warms the app caches
 
 Manual trigger: **Actions → Deploy → Run workflow**.
 
-### One-time VPS bootstrap
+### One-time server bootstrap
 
-1. Point `projectdesk.kraupner.me` A record at vps1's IP
-2. `ssh vps1 'mkdir -p ~/projects/projectdesk'`
-3. Copy `compose.prod.yaml` and `.env.production.example` to the server as `.env`; fill in secrets (`APP_KEY`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `ADMIN_PASSWORD`). Generate `APP_KEY` with:
+Prereqs on the server: Docker, a running Traefik instance attached to an external network named `proxy`, and an ACME certresolver named `lets-encr`. Adjust the labels in `compose.prod.yaml` if your Traefik setup uses different names.
+
+1. Point your domain's A record at the server's IP.
+2. Create the project directory on the server:
    ```bash
-   docker run --rm ghcr.io/<owner>/projectdesk:latest php artisan key:generate --show
+   ssh <user>@<server> 'mkdir -p ~/projects/projectdesk'
    ```
-4. Log into GHCR so the server can pull:
+3. Copy `compose.prod.yaml` and `.env.production.example` into that directory, rename the latter to `.env`, and fill in:
+   - `APP_DOMAIN` and `APP_URL` — your domain
+   - `APP_KEY` — generate with `docker run --rm ghcr.io/<owner>/<repo>:latest php artisan key:generate --show`
+   - `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `ADMIN_PASSWORD` — random strings
+4. If the GHCR package is private, log Docker into GHCR so the server can pull (public packages don't need this):
    ```bash
    docker login ghcr.io -u <github-user> -p <PAT-with-read:packages>
    ```
@@ -104,18 +109,26 @@ Manual trigger: **Actions → Deploy → Run workflow**.
 
 | Secret | Value |
 |---|---|
-| `DEPLOY_SSH_HOST` | Public host or IP of vps1 (workflows don't read your local `~/.ssh/config`) |
-| `DEPLOY_SSH_USER` | VPS username |
-| `DEPLOY_SSH_KEY` | Private half of a deploy keypair added to vps1's `~/.ssh/authorized_keys` |
+| `DEPLOY_SSH_HOST` | Public host or IP of the server (workflows can't read your local `~/.ssh/config`) |
+| `DEPLOY_SSH_USER` | SSH user on the server |
+| `DEPLOY_SSH_KEY` | Private half of a deploy keypair whose public half lives in the server user's `~/.ssh/authorized_keys` |
 
-### Just commands
+### Just commands (from your laptop)
 
 ```bash
-just prod-deploy      # Pull latest image on vps1 + migrate (run from local if you don't want to wait for CI)
+just prod-deploy      # Pull the latest image on the server + run migrations (skip waiting for CI)
 just prod-logs        # Tail prod logs
 just prod-shell       # Shell into the prod app container
 just prod-artisan ... # Run an artisan command on prod (e.g. just prod-artisan migrate:status)
 just prod-build TAG   # Build + push a prod image from your laptop (CI normally does this)
 ```
 
-Host/path/image all come from env: `PROD_SSH_HOST`, `PROD_PATH`, `APP_IMAGE`.
+Host, path, and image are env-overridable so the same commands work for any deployment:
+
+| Variable | Used by | Meaning |
+|---|---|---|
+| `PROD_SSH_HOST` | the `just` commands | SSH host (resolved via your local `~/.ssh/config`) |
+| `PROD_PATH` | the `just` commands | Directory on the server containing `compose.prod.yaml` + `.env` |
+| `APP_IMAGE` | the `just` commands and the deploy workflow | Image to pull, e.g. `ghcr.io/<owner>/<repo>` |
+
+Override per invocation, e.g.: `PROD_SSH_HOST=my-server.example.com just prod-logs`.

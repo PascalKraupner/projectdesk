@@ -8,7 +8,7 @@ use RuntimeException;
 
 class TimeLogService
 {
-    public function start(Project $project): TimeLog
+    public function start(Project $project, ?string $note = null): TimeLog
     {
         if (TimeLog::running()->exists()) {
             throw new RuntimeException('A timer is already running.');
@@ -16,10 +16,11 @@ class TimeLogService
 
         return $project->timeLogs()->create([
             'started_at' => now(),
+            'note' => $note,
         ]);
     }
 
-    public function stop(TimeLog $log, ?string $note = null): TimeLog
+    public function stop(TimeLog $log): TimeLog
     {
         if ($log->ended_at !== null) {
             throw new RuntimeException('This timer has already been stopped.');
@@ -30,8 +31,14 @@ class TimeLogService
         $log->update([
             'ended_at' => $endedAt,
             'duration_seconds' => $log->started_at->diffInSeconds($endedAt),
-            'note' => $note,
         ]);
+
+        return $log;
+    }
+
+    public function updateNote(TimeLog $log, ?string $note): TimeLog
+    {
+        $log->update(['note' => $note]);
 
         return $log;
     }

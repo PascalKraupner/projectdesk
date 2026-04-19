@@ -15,6 +15,7 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/projects/{project}/time-logs', [TimeLogController::class, 'store'])->name('time-logs.store');
     Route::patch('/time-logs/{timeLog}', [TimeLogController::class, 'update'])->name('time-logs.update');
+    Route::patch('/time-logs/{timeLog}/note', [TimeLogController::class, 'updateNote'])->name('time-logs.update-note');
     Route::delete('/time-logs/{timeLog}', [TimeLogController::class, 'destroy'])->name('time-logs.destroy');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

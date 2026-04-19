@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\TimeLog\StoreTimeLogRequest;
 use App\Http\Requests\TimeLog\UpdateTimeLogRequest;
 use App\Models\Project;
 use App\Models\TimeLog;
@@ -14,16 +15,23 @@ class TimeLogController extends Controller
         private readonly TimeLogService $timeLogService,
     ) {}
 
-    public function store(Project $project): RedirectResponse
+    public function store(StoreTimeLogRequest $request, Project $project): RedirectResponse
     {
-        $this->timeLogService->start($project);
+        $this->timeLogService->start($project, $request->validated('note'));
 
         return back();
     }
 
-    public function update(UpdateTimeLogRequest $request, TimeLog $timeLog): RedirectResponse
+    public function update(TimeLog $timeLog): RedirectResponse
     {
-        $this->timeLogService->stop($timeLog, $request->validated('note'));
+        $this->timeLogService->stop($timeLog);
+
+        return back();
+    }
+
+    public function updateNote(UpdateTimeLogRequest $request, TimeLog $timeLog): RedirectResponse
+    {
+        $this->timeLogService->updateNote($timeLog, $request->validated('note'));
 
         return back();
     }

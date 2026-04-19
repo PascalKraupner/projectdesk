@@ -28,6 +28,18 @@ class TimeLogControllerTest extends TestCase
         $this->assertSame($project->id, TimeLog::first()->project_id);
     }
 
+    public function test_store_can_attach_a_note_at_start(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create();
+
+        $this->actingAs($user)
+            ->post("/projects/{$project->id}/time-logs", ['note' => 'Starting work on auth'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('Starting work on auth', TimeLog::first()->note);
+    }
+
     public function test_store_blocks_starting_when_another_log_is_running(): void
     {
         $user = User::factory()->create();
@@ -51,28 +63,28 @@ class TimeLogControllerTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->patch("/time-logs/{$log->id}", ['note' => 'Worked on auth'])
+            ->patch("/time-logs/{$log->id}")
             ->assertSessionHasNoErrors();
 
         $log->refresh();
         $this->assertNotNull($log->ended_at);
         $this->assertGreaterThanOrEqual(1790, $log->duration_seconds);
         $this->assertLessThanOrEqual(1810, $log->duration_seconds);
-        $this->assertSame('Worked on auth', $log->note);
     }
 
-    public function test_update_allows_null_note(): void
+    public function test_update_preserves_existing_note(): void
     {
         $user = User::factory()->create();
         $log = TimeLog::factory()->running()->create([
             'started_at' => now()->subMinutes(5),
+            'note' => 'Already typed while running',
         ]);
 
         $this->actingAs($user)
             ->patch("/time-logs/{$log->id}")
             ->assertSessionHasNoErrors();
 
-        $this->assertNotNull($log->fresh()->ended_at);
+        $this->assertSame('Already typed while running', $log->fresh()->note);
     }
 
     public function test_update_blocks_stopping_an_already_stopped_log(): void
@@ -85,6 +97,30 @@ class TimeLogControllerTest extends TestCase
         $this->withoutExceptionHandling()
             ->actingAs($user)
             ->patch("/time-logs/{$log->id}");
+    }
+
+    public function test_update_note_sets_the_note_on_a_stopped_log(): void
+    {
+        $user = User::factory()->create();
+        $log = TimeLog::factory()->create(['note' => null]);
+
+        $this->actingAs($user)
+            ->patch("/time-logs/{$log->id}/note", ['note' => 'Refactored auth'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('Refactored auth', $log->fresh()->note);
+    }
+
+    public function test_update_note_allows_clearing_the_note(): void
+    {
+        $user = User::factory()->create();
+        $log = TimeLog::factory()->create(['note' => 'Old note']);
+
+        $this->actingAs($user)
+            ->patch("/time-logs/{$log->id}/note", ['note' => null])
+            ->assertSessionHasNoErrors();
+
+        $this->assertNull($log->fresh()->note);
     }
 
     public function test_destroy_deletes_the_log(): void

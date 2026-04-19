@@ -244,6 +244,27 @@ class TimeLogControllerTest extends TestCase
         );
     }
 
+    public function test_running_timer_is_shared_to_inertia_pages(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['title' => 'Acme Site']);
+
+        $this->actingAs($user)
+            ->get("/projects/{$project->id}")
+            ->assertInertia(fn ($page) => $page->where('runningTimer', null));
+
+        TimeLog::factory()->running()->create(['project_id' => $project->id]);
+
+        $this->actingAs($user)
+            ->get("/projects/{$project->id}")
+            ->assertInertia(fn ($page) => $page
+                ->where('runningTimer.project_id', $project->id)
+                ->where('runningTimer.project_title', 'Acme Site')
+                ->has('runningTimer.id')
+                ->has('runningTimer.started_at')
+            );
+    }
+
     public function test_unauthenticated_user_cannot_use_time_log_routes(): void
     {
         $project = Project::factory()->create();

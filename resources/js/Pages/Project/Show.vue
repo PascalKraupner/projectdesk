@@ -16,12 +16,20 @@ import { ProjectStatus } from '@/Enums/ProjectStatus';
 import { Input } from '@/Components/ui/input';
 import ManualTimeEntryDialog from '@/Components/ManualTimeEntryDialog.vue';
 import { Pencil, Play, Plus, Square, Trash2 } from 'lucide-vue-next';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 
 const props = defineProps({
     project: Object,
 });
+
+const page = usePage();
+const runningTimer = computed(() => page.props.runningTimer);
+const runningElsewhere = computed(() =>
+    runningTimer.value && runningTimer.value.project_id !== props.project.id
+        ? runningTimer.value
+        : null,
+);
 
 const now = ref(Date.now());
 let tickHandle = null;
@@ -232,12 +240,13 @@ const statusClass = (status) => {
                                 />
                             </div>
 
-                            <div class="flex items-center gap-3">
+                            <div class="flex flex-col items-center gap-3">
                                 <Button
                                     v-if="!runningLog"
                                     @click="start"
                                     size="lg"
                                     class="h-14 w-14 rounded-full"
+                                    :disabled="!!runningElsewhere"
                                 >
                                     <Play class="h-6 w-6" />
                                 </Button>
@@ -249,6 +258,15 @@ const statusClass = (status) => {
                                 >
                                     <Square class="h-6 w-6" />
                                 </Button>
+                                <p v-if="runningElsewhere && !runningLog" class="text-xs text-muted-foreground">
+                                    Timer running on
+                                    <Link
+                                        :href="route('projects.show', runningElsewhere.project_id)"
+                                        class="font-medium text-foreground hover:underline"
+                                    >
+                                        {{ runningElsewhere.project_title }}
+                                    </Link>
+                                </p>
                             </div>
                         </CardContent>
                     </Card>

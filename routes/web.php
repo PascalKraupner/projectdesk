@@ -4,14 +4,21 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectShareController;
 use App\Http\Controllers\TimeLogController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/share/projects/{project}', [ProjectShareController::class, 'show'])
+    ->name('projects.share')
+    ->middleware('signed');
 
 Route::middleware('auth')->group(function () {
     Route::get('/', DashboardController::class)->name('dashboard');
 
     Route::resource('clients', ClientController::class)->except(['show']);
     Route::resource('projects', ProjectController::class);
+    Route::post('/projects/{project}/share', [ProjectShareController::class, 'store'])->name('projects.share.store');
+    Route::delete('/projects/{project}/share', [ProjectShareController::class, 'destroy'])->name('projects.share.destroy');
 
     Route::post('/projects/{project}/time-logs', [TimeLogController::class, 'store'])->name('time-logs.store');
     Route::post('/projects/{project}/time-logs/manual', [TimeLogController::class, 'storeManual'])->name('time-logs.store-manual');

@@ -15,12 +15,17 @@ import {
 import { ProjectStatus } from '@/Enums/ProjectStatus';
 import { Input } from '@/Components/ui/input';
 import ManualTimeEntryDialog from '@/Components/ManualTimeEntryDialog.vue';
-import { Pencil, Play, Plus, Square, Trash2 } from 'lucide-vue-next';
+import ShareLinkDialog from '@/Components/ShareLinkDialog.vue';
+import { Copy, Pencil, Play, Plus, RotateCcw, Share2, Square, Trash2 } from 'lucide-vue-next';
+import { formatDuration } from '@/lib/time';
+import { statusClass } from '@/lib/projectStatus';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 
 const props = defineProps({
     project: Object,
+    share_url: { type: String, default: null },
+    share_expires_at: { type: String, default: null },
 });
 
 const page = usePage();
@@ -52,14 +57,6 @@ const runningLog = computed(() =>
 const completedLogs = computed(() =>
     props.project.time_logs.filter((l) => l.ended_at !== null),
 );
-
-const formatDuration = (seconds) => {
-    const s = Math.max(0, Math.floor(seconds));
-    const h = String(Math.floor(s / 3600)).padStart(2, '0');
-    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-    const sec = String(s % 60).padStart(2, '0');
-    return `${h}:${m}:${sec}`;
-};
 
 const liveSeconds = computed(() => {
     if (!runningLog.value) return 0;
@@ -137,6 +134,45 @@ const destroyProject = () => {
     router.delete(route('projects.destroy', props.project.id));
 };
 
+const shareDialogOpen = ref(false);
+const shareDialogMode = ref('create');
+const copyState = ref('idle');
+
+const openCreateShare = () => {
+    shareDialogMode.value = 'create';
+    shareDialogOpen.value = true;
+};
+
+const openRegenerateShare = () => {
+    shareDialogMode.value = 'regenerate';
+    shareDialogOpen.value = true;
+};
+
+const revokeShare = () => {
+    router.delete(route('projects.share.destroy', props.project.id), {
+        preserveScroll: true,
+    });
+};
+
+const copyShareUrl = async () => {
+    if (!props.share_url) return;
+    try {
+        await navigator.clipboard.writeText(props.share_url);
+        copyState.value = 'copied';
+        setTimeout(() => { copyState.value = 'idle'; }, 1500);
+    } catch (e) {
+        copyState.value = 'error';
+    }
+};
+
+const shareExpiryLabel = computed(() => {
+    if (!props.share_expires_at) return null;
+    return new Date(props.share_expires_at).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
+});
+
 const manualDialogOpen = ref(false);
 const manualDialogLog = ref(null);
 
@@ -150,13 +186,6 @@ const openEditEntry = (log) => {
     manualDialogOpen.value = true;
 };
 
-const statusClass = (status) => {
-    return {
-        [ProjectStatus.Active]: 'border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400',
-        [ProjectStatus.Paused]: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
-        [ProjectStatus.Completed]: 'border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400',
-    }[status] || '';
-};
 </script>
 
 <template>
@@ -321,6 +350,66 @@ const statusClass = (status) => {
                     </Card>
                 </div>
 
+                <!-- Share -->
+                <Card>
+                    <CardHeader class="flex flex-row items-center justify-between space-y-0">
+                        <CardTitle class="text-sm font-medium text-muted-foreground">Share with client</CardTitle>
+                        <Button
+                            v-if="!share_url"
+                            variant="outline"
+                            size="sm"
+                            @click="openCreateShare"
+                        >
+                            <Share2 class="mr-1 h-4 w-4" />
+                            Create share link
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        <div v-if="share_url" class="space-y-3">
+                            <div class="flex items-center gap-2">
+                                <Input :model-value="share_url" readonly class="font-mono text-xs" />
+                                <Button variant="outline" size="icon" @click="copyShareUrl" :title="copyState === 'copied' ? 'Copied!' : 'Copy link'">
+                                    <Copy class="h-4 w-4" />
+                                </Button>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <p class="text-xs text-muted-foreground">
+                                    <span v-if="copyState === 'copied'" class="text-foreground">Copied to clipboard.</span>
+                                    <span v-else>Expires {{ shareExpiryLabel }}.</span>
+                                </p>
+                                <div class="flex items-center gap-1">
+                                    <Button variant="ghost" size="sm" @click="openRegenerateShare">
+                                        <RotateCcw class="mr-1 h-4 w-4" />
+                                        Regenerate
+                                    </Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger as-child>
+                                            <Button variant="ghost" size="sm" class="text-destructive hover:text-destructive">
+                                                Revoke
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Revoke share link?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    The current link stops working immediately.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction @click="revokeShare">Revoke</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                            </div>
+                        </div>
+                        <p v-else class="text-sm text-muted-foreground">
+                            Sharing is off. Create a link to let your client view this project's progress.
+                        </p>
+                    </CardContent>
+                </Card>
+
                 <!-- Time logs -->
                 <Card>
                     <CardHeader class="flex flex-row items-center justify-between space-y-0">
@@ -413,6 +502,13 @@ const statusClass = (status) => {
             v-model:open="manualDialogOpen"
             :project-id="project.id"
             :log="manualDialogLog"
+        />
+
+        <ShareLinkDialog
+            v-model:open="shareDialogOpen"
+            :project-id="project.id"
+            :mode="shareDialogMode"
+            :current-expires-at="share_expires_at"
         />
     </AuthenticatedLayout>
 </template>

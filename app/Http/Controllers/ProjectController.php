@@ -8,6 +8,7 @@ use App\Http\Requests\Project\UpdateProjectRequest;
 use App\Models\Client;
 use App\Models\Project;
 use App\Services\ProjectService;
+use App\Services\ProjectShareService;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,6 +17,7 @@ class ProjectController extends Controller
 {
     public function __construct(
         private readonly ProjectService $projectService,
+        private readonly ProjectShareService $shareService,
     ) {}
 
     public function index(): Response
@@ -47,6 +49,8 @@ class ProjectController extends Controller
     {
         return Inertia::render('Project/Show', [
             'project' => $this->projectService->find($project->id),
+            'share_url' => $this->shareService->signedUrl($project),
+            'share_expires_at' => $project->share_expires_at?->toIso8601String(),
         ]);
     }
 

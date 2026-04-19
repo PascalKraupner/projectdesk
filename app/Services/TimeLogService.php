@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\TimeLog;
 use Carbon\CarbonImmutable;
@@ -11,6 +12,10 @@ class TimeLogService
 {
     public function start(Project $project, ?string $note = null): TimeLog
     {
+        if ($project->status !== ProjectStatus::Active) {
+            throw new RuntimeException('Cannot start a timer on a non-active project.');
+        }
+
         if (TimeLog::running()->exists()) {
             throw new RuntimeException('A timer is already running.');
         }

@@ -30,6 +30,12 @@ const runningElsewhere = computed(() =>
         ? runningTimer.value
         : null,
 );
+const isActive = computed(() => props.project.status === ProjectStatus.Active);
+const startDisabledReason = computed(() => {
+    if (runningElsewhere.value) return 'elsewhere';
+    if (!isActive.value) return 'inactive';
+    return null;
+});
 
 const now = ref(Date.now());
 let tickHandle = null;
@@ -246,7 +252,7 @@ const statusClass = (status) => {
                                     @click="start"
                                     size="lg"
                                     class="h-14 w-14 rounded-full"
-                                    :disabled="!!runningElsewhere"
+                                    :disabled="!!startDisabledReason"
                                 >
                                     <Play class="h-6 w-6" />
                                 </Button>
@@ -258,7 +264,10 @@ const statusClass = (status) => {
                                 >
                                     <Square class="h-6 w-6" />
                                 </Button>
-                                <p v-if="runningElsewhere && !runningLog" class="text-xs text-muted-foreground">
+                                <p
+                                    v-if="startDisabledReason === 'elsewhere'"
+                                    class="text-xs text-muted-foreground"
+                                >
                                     Timer running on
                                     <Link
                                         :href="route('projects.show', runningElsewhere.project_id)"
@@ -266,6 +275,12 @@ const statusClass = (status) => {
                                     >
                                         {{ runningElsewhere.project_title }}
                                     </Link>
+                                </p>
+                                <p
+                                    v-else-if="startDisabledReason === 'inactive'"
+                                    class="text-xs text-muted-foreground capitalize"
+                                >
+                                    Project is {{ project.status }}
                                 </p>
                             </div>
                         </CardContent>

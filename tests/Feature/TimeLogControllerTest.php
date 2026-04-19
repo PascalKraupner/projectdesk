@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ProjectStatus;
 use App\Models\Project;
 use App\Models\TimeLog;
 use App\Models\User;
@@ -15,7 +16,7 @@ class TimeLogControllerTest extends TestCase
     public function test_store_starts_a_new_log(): void
     {
         $user = User::factory()->create();
-        $project = Project::factory()->create();
+        $project = Project::factory()->create(['status' => ProjectStatus::Active]);
 
         $this->actingAs($user)
             ->from("/projects/{$project->id}")
@@ -31,7 +32,7 @@ class TimeLogControllerTest extends TestCase
     public function test_store_can_attach_a_note_at_start(): void
     {
         $user = User::factory()->create();
-        $project = Project::factory()->create();
+        $project = Project::factory()->create(['status' => ProjectStatus::Active]);
 
         $this->actingAs($user)
             ->post("/projects/{$project->id}/time-logs", ['note' => 'Starting work on auth'])
@@ -43,8 +44,32 @@ class TimeLogControllerTest extends TestCase
     public function test_store_blocks_starting_when_another_log_is_running(): void
     {
         $user = User::factory()->create();
-        $project = Project::factory()->create();
+        $project = Project::factory()->create(['status' => ProjectStatus::Active]);
         TimeLog::factory()->running()->create(['project_id' => $project->id]);
+
+        $this->expectException(\RuntimeException::class);
+
+        $this->withoutExceptionHandling()
+            ->actingAs($user)
+            ->post("/projects/{$project->id}/time-logs");
+    }
+
+    public function test_store_blocks_starting_on_a_paused_project(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['status' => ProjectStatus::Paused]);
+
+        $this->expectException(\RuntimeException::class);
+
+        $this->withoutExceptionHandling()
+            ->actingAs($user)
+            ->post("/projects/{$project->id}/time-logs");
+    }
+
+    public function test_store_blocks_starting_on_a_completed_project(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['status' => ProjectStatus::Completed]);
 
         $this->expectException(\RuntimeException::class);
 

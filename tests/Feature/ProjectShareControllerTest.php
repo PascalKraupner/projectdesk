@@ -78,7 +78,9 @@ class ProjectShareControllerTest extends TestCase
 
         $tampered = $url.'X';
 
-        $this->get($tampered)->assertForbidden();
+        $this->get($tampered)
+            ->assertForbidden()
+            ->assertInertia(fn ($page) => $page->component('Project/PublicShareExpired'));
     }
 
     public function test_show_403s_when_url_has_expired(): void
@@ -94,7 +96,9 @@ class ProjectShareControllerTest extends TestCase
         ]);
 
         CarbonImmutable::setTestNow($expires->addMinute());
-        $this->get($url)->assertForbidden();
+        $this->get($url)
+            ->assertForbidden()
+            ->assertInertia(fn ($page) => $page->component('Project/PublicShareExpired'));
         CarbonImmutable::setTestNow();
     }
 
@@ -113,7 +117,9 @@ class ProjectShareControllerTest extends TestCase
 
         $project->update(['share_token' => 'tok-new']);
 
-        $this->get($oldUrl)->assertForbidden();
+        $this->get($oldUrl)
+            ->assertForbidden()
+            ->assertInertia(fn ($page) => $page->component('Project/PublicShareExpired'));
     }
 
     public function test_show_403s_when_sharing_was_revoked(): void
@@ -131,7 +137,9 @@ class ProjectShareControllerTest extends TestCase
 
         $project->update(['share_token' => null, 'share_expires_at' => null]);
 
-        $this->get($url)->assertForbidden();
+        $this->get($url)
+            ->assertForbidden()
+            ->assertInertia(fn ($page) => $page->component('Project/PublicShareExpired'));
     }
 
     public function test_owner_can_regenerate_to_invalidate_old_links(): void

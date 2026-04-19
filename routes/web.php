@@ -9,8 +9,7 @@ use App\Http\Controllers\TimeLogController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/share/projects/{project}', [ProjectShareController::class, 'show'])
-    ->name('projects.share')
-    ->middleware('signed');
+    ->name('projects.share');
 
 Route::middleware('auth')->group(function () {
     Route::get('/', DashboardController::class)->name('dashboard');

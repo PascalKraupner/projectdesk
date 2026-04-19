@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class ProjectShareController extends Controller
 {
@@ -19,12 +20,18 @@ class ProjectShareController extends Controller
         private readonly ProjectService $projectService,
     ) {}
 
-    public function show(Request $request, Project $project): Response
+    public function show(Request $request, Project $project): Response|HttpResponse
     {
         $token = (string) $request->query('token', '');
 
-        if (! $project->share_token || ! hash_equals($project->share_token, $token)) {
-            abort(403);
+        $valid = $request->hasValidSignature()
+            && $project->share_token
+            && hash_equals($project->share_token, $token);
+
+        if (! $valid) {
+            return Inertia::render('Project/PublicShareExpired')
+                ->toResponse($request)
+                ->setStatusCode(403);
         }
 
         $loaded = $this->projectService->find($project->id);

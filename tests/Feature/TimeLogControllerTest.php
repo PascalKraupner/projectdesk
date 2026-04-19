@@ -269,6 +269,58 @@ class TimeLogControllerTest extends TestCase
         );
     }
 
+    public function test_export_returns_csv_with_completed_logs_oldest_first(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['title' => 'Acme Site Redesign']);
+
+        TimeLog::factory()->create([
+            'project_id' => $project->id,
+            'started_at' => '2026-04-19 09:00:00',
+            'ended_at' => '2026-04-19 10:30:00',
+            'duration_seconds' => 5400,
+            'note' => 'Wireframes',
+        ]);
+
+        TimeLog::factory()->create([
+            'project_id' => $project->id,
+            'started_at' => '2026-04-18 13:00:00',
+            'ended_at' => '2026-04-18 14:00:00',
+            'duration_seconds' => 3600,
+            'note' => null,
+        ]);
+
+        TimeLog::factory()->running()->create(['project_id' => $project->id]);
+
+        $response = $this->actingAs($user)
+            ->get("/projects/{$project->id}/time-logs/export.csv");
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+        $this->assertStringContainsString(
+            'attachment; filename=acme-site-redesign-time-logs.csv',
+            $response->headers->get('Content-Disposition'),
+        );
+
+        $body = $response->streamedContent();
+        $lines = array_values(array_filter(explode("\n", trim($body))));
+
+        $this->assertSame('Started,Ended,Duration,Seconds,Note', $lines[0]);
+        $this->assertStringContainsString('2026-04-18T13:00:00', $lines[1]);
+        $this->assertStringContainsString('01:00:00,3600,', $lines[1]);
+        $this->assertStringContainsString('2026-04-19T09:00:00', $lines[2]);
+        $this->assertStringContainsString('01:30:00,5400,Wireframes', $lines[2]);
+        $this->assertCount(3, $lines, 'Running log should be excluded');
+    }
+
+    public function test_export_requires_auth(): void
+    {
+        $project = Project::factory()->create();
+
+        $this->get("/projects/{$project->id}/time-logs/export.csv")
+            ->assertRedirect('/login');
+    }
+
     public function test_running_timer_is_shared_to_inertia_pages(): void
     {
         $user = User::factory()->create();

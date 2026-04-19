@@ -9,4 +9,4 @@
 - [x] Manual time entries: add/edit logs by hand (start/end/duration), not just via the timer
 - [x] Cross-project timer guard: if a timer is running on project A, project B's Start should be disabled with a hint instead of erroring out
 - [x] Sharing progress with clients: public link of project status (signed URL with expiry + revoke)
-- [ ] Export logs as CSV
+- [x] Export logs as CSV (per project)

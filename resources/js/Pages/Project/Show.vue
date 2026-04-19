@@ -16,7 +16,7 @@ import { ProjectStatus } from '@/Enums/ProjectStatus';
 import { Input } from '@/Components/ui/input';
 import ManualTimeEntryDialog from '@/Components/ManualTimeEntryDialog.vue';
 import ShareLinkDialog from '@/Components/ShareLinkDialog.vue';
-import { Copy, Pencil, Play, Plus, RotateCcw, Share2, Square, Trash2 } from 'lucide-vue-next';
+import { Copy, Download, Pencil, Play, Plus, RotateCcw, Share2, Square, Trash2 } from 'lucide-vue-next';
 import { formatDuration } from '@/lib/time';
 import { statusClass } from '@/lib/projectStatus';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
@@ -206,6 +206,12 @@ const openEditEntry = (log) => {
                     <span class="text-sm text-muted-foreground">
                         {{ project.client?.name }}
                     </span>
+                    <Button as-child variant="outline" size="sm" title="Export time logs as CSV">
+                        <a :href="route('time-logs.export', project.id)">
+                            <Download class="mr-1 h-4 w-4" />
+                            Export
+                        </a>
+                    </Button>
                     <Button as-child variant="outline" size="sm">
                         <Link :href="route('projects.edit', project.id)">Edit</Link>
                     </Button>

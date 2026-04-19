@@ -19,6 +19,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/projects/{project}/share', [ProjectShareController::class, 'store'])->name('projects.share.store');
     Route::delete('/projects/{project}/share', [ProjectShareController::class, 'destroy'])->name('projects.share.destroy');
 
+    Route::get('/projects/{project}/time-logs/export.csv', [TimeLogController::class, 'export'])->name('time-logs.export');
     Route::post('/projects/{project}/time-logs', [TimeLogController::class, 'store'])->name('time-logs.store');
     Route::post('/projects/{project}/time-logs/manual', [TimeLogController::class, 'storeManual'])->name('time-logs.store-manual');
     Route::patch('/time-logs/{timeLog}', [TimeLogController::class, 'update'])->name('time-logs.update');

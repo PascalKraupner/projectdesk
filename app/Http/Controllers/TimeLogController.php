@@ -8,14 +8,22 @@ use App\Http\Requests\TimeLog\UpdateManualTimeLogRequest;
 use App\Http\Requests\TimeLog\UpdateTimeLogRequest;
 use App\Models\Project;
 use App\Models\TimeLog;
+use App\Services\TimeLogExportService;
 use App\Services\TimeLogService;
 use Illuminate\Http\RedirectResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TimeLogController extends Controller
 {
     public function __construct(
         private readonly TimeLogService $timeLogService,
+        private readonly TimeLogExportService $exportService,
     ) {}
+
+    public function export(Project $project): StreamedResponse
+    {
+        return $this->exportService->streamProjectCsv($project);
+    }
 
     public function store(StoreTimeLogRequest $request, Project $project): RedirectResponse
     {

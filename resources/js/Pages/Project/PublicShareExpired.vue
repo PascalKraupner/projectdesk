@@ -18,7 +18,7 @@ import { LinkIcon, Timer } from 'lucide-vue-next';
         <main class="mx-auto max-w-3xl px-6 py-12">
             <Card>
                 <CardContent class="flex flex-col items-center gap-4 py-16 text-center">
-                    <div class="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                    <div class="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
                         <LinkIcon class="h-6 w-6 text-muted-foreground" />
                     </div>
                     <h1 class="text-2xl font-semibold text-foreground">

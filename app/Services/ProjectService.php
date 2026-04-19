@@ -9,7 +9,10 @@ class ProjectService
 {
     public function all(): Collection
     {
-        return Project::with('client')->latest()->get();
+        return Project::with('client')
+            ->withSum('timeLogs as total_seconds', 'duration_seconds')
+            ->latest()
+            ->get();
     }
 
     public function find(int $id): Project

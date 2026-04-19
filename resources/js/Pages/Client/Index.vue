@@ -16,6 +16,13 @@ defineProps({
     clients: Array,
 });
 
+const formatDuration = (seconds) => {
+    const s = Math.max(0, Math.floor(seconds || 0));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
+
 const destroy = (client) => {
     router.delete(route('clients.destroy', client.id), {
         preserveScroll: true,
@@ -46,6 +53,7 @@ const destroy = (client) => {
                             <TableHead>Name</TableHead>
                             <TableHead>Email</TableHead>
                             <TableHead class="text-right">Projects</TableHead>
+                            <TableHead class="text-right">Time</TableHead>
                             <TableHead class="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -59,6 +67,9 @@ const destroy = (client) => {
                             <TableCell>{{ client.email || '—' }}</TableCell>
                             <TableCell class="text-right">
                                 <Badge variant="secondary">{{ client.projects_count }}</Badge>
+                            </TableCell>
+                            <TableCell class="text-right font-mono text-sm tabular-nums">
+                                {{ formatDuration(client.total_seconds) }}
                             </TableCell>
                             <TableCell class="text-right">
                                 <div class="flex justify-end gap-2">
@@ -95,7 +106,7 @@ const destroy = (client) => {
                             </TableCell>
                         </TableRow>
                         <TableRow v-if="!clients.length">
-                            <TableCell colspan="4" class="text-center text-muted-foreground">
+                            <TableCell colspan="5" class="text-center text-muted-foreground">
                                 No clients yet.
                             </TableCell>
                         </TableRow>

@@ -17,6 +17,13 @@ defineProps({
     projects: Array,
 });
 
+const formatDuration = (seconds) => {
+    const s = Math.max(0, Math.floor(seconds || 0));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
+
 const statusClass = (status) => {
     return {
         [ProjectStatus.Active]: 'border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400',
@@ -55,6 +62,7 @@ const destroy = (project) => {
                             <TableHead>Title</TableHead>
                             <TableHead>Client</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead class="text-right">Time</TableHead>
                             <TableHead class="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -68,6 +76,9 @@ const destroy = (project) => {
                             <TableCell>{{ project.client?.name || '—' }}</TableCell>
                             <TableCell>
                                 <Badge variant="outline" :class="statusClass(project.status)" class="capitalize">{{ project.status }}</Badge>
+                            </TableCell>
+                            <TableCell class="text-right font-mono text-sm tabular-nums">
+                                {{ formatDuration(project.total_seconds) }}
                             </TableCell>
                             <TableCell class="text-right">
                                 <div class="flex justify-end gap-2">
@@ -99,7 +110,7 @@ const destroy = (project) => {
                             </TableCell>
                         </TableRow>
                         <TableRow v-if="!projects.length">
-                            <TableCell colspan="4" class="text-center text-muted-foreground">
+                            <TableCell colspan="5" class="text-center text-muted-foreground">
                                 No projects yet.
                             </TableCell>
                         </TableRow>

@@ -9,7 +9,10 @@ class ClientService
 {
     public function all(): Collection
     {
-        return Client::withCount('projects')->latest()->get();
+        return Client::withCount('projects')
+            ->withSum('timeLogs as total_seconds', 'duration_seconds')
+            ->latest()
+            ->get();
     }
 
     /** @param  array<string, mixed>  $data */

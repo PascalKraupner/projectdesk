@@ -23,6 +23,24 @@ class ProjectControllerTest extends TestCase
             ->assertOk();
     }
 
+    public function test_index_includes_total_seconds_per_project(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create();
+        \App\Models\TimeLog::factory()->count(3)->create([
+            'project_id' => $project->id,
+            'duration_seconds' => 1200,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/projects')
+            ->assertInertia(
+                fn ($page) => $page
+                    ->component('Project/Index')
+                    ->where('projects.0.total_seconds', 3600)
+            );
+    }
+
     public function test_create_page_is_displayed(): void
     {
         $user = User::factory()->create();

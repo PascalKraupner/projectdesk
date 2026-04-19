@@ -21,6 +21,25 @@ class ClientControllerTest extends TestCase
             ->assertOk();
     }
 
+    public function test_index_includes_total_seconds_per_client(): void
+    {
+        $user = User::factory()->create();
+        $client = Client::factory()->create();
+        $project = \App\Models\Project::factory()->create(['client_id' => $client->id]);
+        \App\Models\TimeLog::factory()->count(2)->create([
+            'project_id' => $project->id,
+            'duration_seconds' => 900,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/clients')
+            ->assertInertia(
+                fn ($page) => $page
+                    ->component('Client/Index')
+                    ->where('clients.0.total_seconds', 1800)
+            );
+    }
+
     public function test_create_page_is_displayed(): void
     {
         $user = User::factory()->create();

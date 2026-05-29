@@ -14,5 +14,10 @@ import { Link } from '@inertiajs/vue3';
         <div class="mt-6 w-full sm:max-w-md">
             <slot />
         </div>
+
+        <footer class="mt-8 flex gap-4 text-xs text-muted-foreground">
+            <a href="https://pascalkraupner.com/imprint" target="_blank" rel="noopener noreferrer" class="hover:text-foreground">Impressum</a>
+            <a href="https://pascalkraupner.com/privacy" target="_blank" rel="noopener noreferrer" class="hover:text-foreground">Datenschutz</a>
+        </footer>
     </div>
 </template>

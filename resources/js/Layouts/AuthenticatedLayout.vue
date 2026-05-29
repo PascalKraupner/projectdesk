@@ -206,6 +206,13 @@ const showingNavigationDropdown = ref(false);
             <main>
                 <slot />
             </main>
+
+            <footer class="mt-auto border-t border-border bg-card">
+                <div class="mx-auto flex max-w-7xl items-center justify-end gap-4 px-4 py-4 text-xs text-muted-foreground sm:px-6 lg:px-8">
+                    <a href="https://pascalkraupner.com/imprint" target="_blank" rel="noopener noreferrer" class="hover:text-foreground">Impressum</a>
+                    <a href="https://pascalkraupner.com/privacy" target="_blank" rel="noopener noreferrer" class="hover:text-foreground">Datenschutz</a>
+                </div>
+            </footer>
         </div>
     </div>
 </template>

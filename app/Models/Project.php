@@ -12,13 +12,12 @@ class Project extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['client_id', 'title', 'status', 'share_token', 'share_expires_at'];
+    protected $fillable = ['client_id', 'title', 'status'];
 
     protected function casts(): array
     {
         return [
             'status' => ProjectStatus::class,
-            'share_expires_at' => 'datetime',
         ];
     }
 

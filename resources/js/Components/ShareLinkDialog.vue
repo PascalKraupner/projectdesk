@@ -11,7 +11,7 @@ import { Label } from '@/Components/ui/label';
 
 const props = defineProps({
     open: Boolean,
-    projectId: { type: Number, required: true },
+    clientId: { type: Number, required: true },
     mode: { type: String, default: 'create' },
     currentExpiresAt: { type: String, default: null },
 });
@@ -48,7 +48,7 @@ const close = () => emit('update:open', false);
 const submit = () => {
     submitting.value = true;
     router.post(
-        route('projects.share.store', props.projectId),
+        route('clients.share.store', props.clientId),
         {
             expires_at: new Date(expiresAt.value).toISOString(),
             regenerate: props.mode === 'regenerate',
@@ -74,7 +74,7 @@ const submit = () => {
                     {{
                         mode === 'regenerate'
                             ? 'A new link will be generated. Any previously shared link stops working immediately.'
-                            : 'Anyone with the link can view this project until it expires.'
+                            : 'Anyone with the link can view this client\'s projects and time entries until it expires.'
                     }}
                 </DialogDescription>
             </DialogHeader>

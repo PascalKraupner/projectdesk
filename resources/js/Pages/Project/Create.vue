@@ -12,10 +12,11 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 const props = defineProps({
     clients: Array,
     statuses: Array,
+    preselectedClientId: { type: Number, default: null },
 });
 
 const form = useForm({
-    client_id: props.clients[0]?.id ?? null,
+    client_id: props.preselectedClientId ?? props.clients[0]?.id ?? null,
     title: '',
     status: props.statuses[0]?.value ?? 'active',
 });

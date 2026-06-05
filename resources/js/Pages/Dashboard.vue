@@ -121,7 +121,7 @@ const formatDuration = (seconds) => {
                             <ul v-else class="divide-y divide-border">
                                 <li v-for="client in topClients" :key="client.id" class="flex items-center justify-between py-2">
                                     <Link
-                                        :href="route('clients.edit', client.id)"
+                                        :href="route('clients.show', client.id)"
                                         class="text-sm font-medium text-foreground hover:underline"
                                     >
                                         {{ client.name }}

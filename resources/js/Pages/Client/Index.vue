@@ -60,7 +60,7 @@ const destroy = (client) => {
                     <TableBody>
                         <TableRow v-for="client in clients" :key="client.id">
                             <TableCell class="font-medium">
-                                <Link :href="route('clients.edit', client.id)">
+                                <Link :href="route('clients.show', client.id)">
                                     {{ client.name }}
                                 </Link>
                             </TableCell>
@@ -73,6 +73,9 @@ const destroy = (client) => {
                             </TableCell>
                             <TableCell class="text-right">
                                 <div class="flex justify-end gap-2">
+                                    <Button as-child variant="outline" size="sm">
+                                        <Link :href="route('clients.show', client.id)">Open</Link>
+                                    </Button>
                                     <Button as-child variant="outline" size="sm">
                                         <Link :href="route('clients.edit', client.id)">Edit</Link>
                                     </Button>

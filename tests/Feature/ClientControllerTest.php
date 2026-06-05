@@ -53,17 +53,20 @@ class ClientControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $this->actingAs($user)
+        $response = $this->actingAs($user)
             ->post('/clients', [
                 'name' => 'Acme Inc',
                 'email' => 'hello@acme.test',
             ])
-            ->assertSessionHasNoErrors()
-            ->assertRedirect('/clients');
+            ->assertSessionHasNoErrors();
+
+        $client = Client::firstWhere('name', 'Acme Inc');
+        $response->assertRedirect("/clients/{$client->id}");
 
         $this->assertDatabaseHas('clients', [
             'name' => 'Acme Inc',
             'email' => 'hello@acme.test',
+            'currency' => 'EUR',
         ]);
     }
 
@@ -76,13 +79,44 @@ class ClientControllerTest extends TestCase
                 'name' => 'No Email Co',
                 'email' => null,
             ])
-            ->assertSessionHasNoErrors()
-            ->assertRedirect('/clients');
+            ->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('clients', [
             'name' => 'No Email Co',
             'email' => null,
         ]);
+    }
+
+    public function test_store_accepts_hourly_rate_and_currency(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post('/clients', [
+                'name' => 'Hourly Co',
+                'email' => 'rate@example.test',
+                'hourly_rate' => 95.5,
+                'currency' => 'USD',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('clients', [
+            'name' => 'Hourly Co',
+            'hourly_rate' => 95.5,
+            'currency' => 'USD',
+        ]);
+    }
+
+    public function test_store_rejects_unsupported_currency(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post('/clients', [
+                'name' => 'Bad Currency',
+                'currency' => 'GBP',
+            ])
+            ->assertSessionHasErrors('currency');
     }
 
     public function test_store_requires_name(): void
@@ -128,10 +162,33 @@ class ClientControllerTest extends TestCase
                 'email' => 'new@x.test',
             ])
             ->assertSessionHasNoErrors()
-            ->assertRedirect('/clients');
+            ->assertRedirect("/clients/{$client->id}");
 
         $this->assertSame('New', $client->fresh()->name);
         $this->assertSame('new@x.test', $client->fresh()->email);
+    }
+
+    public function test_show_renders_client_with_projects(): void
+    {
+        $user = User::factory()->create();
+        $client = Client::factory()->create();
+        $project = \App\Models\Project::factory()->create(['client_id' => $client->id]);
+        \App\Models\TimeLog::factory()->create([
+            'project_id' => $project->id,
+            'duration_seconds' => 1800,
+            'started_at' => now()->subHour(),
+            'ended_at' => now()->subMinutes(30),
+        ]);
+
+        $this->actingAs($user)
+            ->get("/clients/{$client->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Client/Show')
+                ->where('client.id', $client->id)
+                ->where('client.total_seconds', 1800)
+                ->has('client.projects', 1)
+            );
     }
 
     public function test_update_allows_keeping_same_email(): void

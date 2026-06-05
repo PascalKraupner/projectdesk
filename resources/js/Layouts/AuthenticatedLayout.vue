@@ -6,6 +6,7 @@ import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import ThemeToggle from '@/Components/ThemeToggle.vue';
+import TimerWidget from '@/Components/TimerWidget.vue';
 import { Link } from '@inertiajs/vue3';
 
 const showingNavigationDropdown = ref(false);
@@ -52,6 +53,7 @@ const showingNavigationDropdown = ref(false);
                         </div>
 
                         <div class="hidden sm:ms-6 sm:flex sm:items-center sm:gap-4">
+                            <TimerWidget />
                             <ThemeToggle />
 
                             <!-- Settings Dropdown -->
@@ -188,8 +190,9 @@ const showingNavigationDropdown = ref(false);
                             </ResponsiveNavLink>
                         </div>
 
-                        <div class="px-4 py-3">
+                        <div class="px-4 py-3 flex items-center gap-3">
                             <ThemeToggle />
+                            <TimerWidget />
                         </div>
                     </div>
                 </div>

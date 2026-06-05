@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\ProjectStatus;
+use App\Models\Project;
 use App\Models\TimeLog;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -36,6 +38,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'runningTimer' => fn () => $this->runningTimer($request),
+            'timerProjects' => fn () => $this->timerProjects($request),
         ];
     }
 
@@ -61,5 +64,25 @@ class HandleInertiaRequests extends Middleware
             'project_title' => $log->project?->title,
             'started_at' => $log->started_at?->toIso8601String(),
         ];
+    }
+
+    /** @return array<int, array{id: int, title: string, client_name: ?string}> */
+    private function timerProjects(Request $request): array
+    {
+        if (! $request->user()) {
+            return [];
+        }
+
+        return Project::query()
+            ->where('status', ProjectStatus::Active)
+            ->with('client:id,name')
+            ->orderBy('title')
+            ->get(['id', 'title', 'client_id'])
+            ->map(fn (Project $p) => [
+                'id' => $p->id,
+                'title' => $p->title,
+                'client_name' => $p->client?->name,
+            ])
+            ->all();
     }
 }

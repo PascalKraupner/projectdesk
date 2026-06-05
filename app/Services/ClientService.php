@@ -15,6 +15,26 @@ class ClientService
             ->get();
     }
 
+    public function find(int $id): Client
+    {
+        $startOfMonth = now()->startOfMonth();
+
+        return Client::with([
+            'projects' => fn ($q) => $q
+                ->withSum('timeLogs as total_seconds', 'duration_seconds')
+                ->withSum([
+                    'timeLogs as total_seconds_this_month' => fn ($l) => $l->where('started_at', '>=', $startOfMonth),
+                ], 'duration_seconds')
+                ->with(['timeLogs' => fn ($l) => $l->latest('started_at')])
+                ->orderBy('title'),
+        ])
+            ->withSum('timeLogs as total_seconds', 'duration_seconds')
+            ->withSum([
+                'timeLogs as total_seconds_this_month' => fn ($l) => $l->where('started_at', '>=', $startOfMonth),
+            ], 'duration_seconds')
+            ->findOrFail($id);
+    }
+
     /** @param  array<string, mixed>  $data */
     public function create(array $data): Client
     {

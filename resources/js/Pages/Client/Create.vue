@@ -3,16 +3,30 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/Components/ui/select';
 import InputError from '@/Components/InputError.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+
+const props = defineProps({
+    currencies: Array,
+});
 
 const form = useForm({
     name: '',
     email: '',
+    hourly_rate: '',
+    currency: props.currencies[0]?.value ?? 'EUR',
 });
 
 const submit = () => {
-    form.post(route('clients.store'));
+    form
+        .transform((data) => ({
+            ...data,
+            hourly_rate: data.hourly_rate === '' ? null : data.hourly_rate,
+        }))
+        .post(route('clients.store'));
 };
 </script>
 
@@ -49,6 +63,39 @@ const submit = () => {
                             type="email"
                         />
                         <InputError :message="form.errors.email" />
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="col-span-2 space-y-2">
+                            <Label for="hourly_rate">Hourly rate</Label>
+                            <Input
+                                id="hourly_rate"
+                                v-model="form.hourly_rate"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                            />
+                            <InputError :message="form.errors.hourly_rate" />
+                        </div>
+                        <div class="space-y-2">
+                            <Label for="currency">Currency</Label>
+                            <Select v-model="form.currency">
+                                <SelectTrigger id="currency">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="c in currencies"
+                                        :key="c.value"
+                                        :value="c.value"
+                                    >
+                                        {{ c.label }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <InputError :message="form.errors.currency" />
+                        </div>
                     </div>
 
                     <div class="flex items-center gap-3">

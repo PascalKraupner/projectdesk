@@ -1,23 +1,24 @@
 <?php
 
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\ClientShareController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\ProjectShareController;
 use App\Http\Controllers\TimeLogController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/share/projects/{project}', [ProjectShareController::class, 'show'])
-    ->name('projects.share');
+Route::get('/share/clients/{client}', [ClientShareController::class, 'show'])
+    ->name('clients.share');
 
 Route::middleware('auth')->group(function () {
     Route::get('/', DashboardController::class)->name('dashboard');
 
-    Route::resource('clients', ClientController::class)->except(['show']);
+    Route::resource('clients', ClientController::class);
+    Route::post('/clients/{client}/share', [ClientShareController::class, 'store'])->name('clients.share.store');
+    Route::delete('/clients/{client}/share', [ClientShareController::class, 'destroy'])->name('clients.share.destroy');
+
     Route::resource('projects', ProjectController::class);
-    Route::post('/projects/{project}/share', [ProjectShareController::class, 'store'])->name('projects.share.store');
-    Route::delete('/projects/{project}/share', [ProjectShareController::class, 'destroy'])->name('projects.share.destroy');
 
     Route::get('/projects/{project}/time-logs/export.csv', [TimeLogController::class, 'export'])->name('time-logs.export');
     Route::post('/projects/{project}/time-logs', [TimeLogController::class, 'store'])->name('time-logs.store');

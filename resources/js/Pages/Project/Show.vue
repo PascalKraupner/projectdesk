@@ -401,7 +401,6 @@ const openEditEntry = (log) => {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Started</TableHead>
-                                    <TableHead>Ended</TableHead>
                                     <TableHead>Duration</TableHead>
                                     <TableHead>Note</TableHead>
                                     <TableHead class="text-right"></TableHead>
@@ -410,7 +409,6 @@ const openEditEntry = (log) => {
                             <TableBody>
                                 <TableRow v-for="log in completedLogs" :key="log.id">
                                     <TableCell class="text-sm">{{ formatDateTime(log.started_at) }}</TableCell>
-                                    <TableCell class="text-sm">{{ formatDateTime(log.ended_at) }}</TableCell>
                                     <TableCell class="font-mono tabular-nums">
                                         {{ formatDuration(log.duration_seconds) }}
                                     </TableCell>
@@ -473,7 +471,7 @@ const openEditEntry = (log) => {
                                     </TableCell>
                                 </TableRow>
                                 <TableRow v-if="!completedLogs.length">
-                                    <TableCell colspan="5" class="text-center text-muted-foreground">
+                                    <TableCell colspan="4" class="text-center text-muted-foreground">
                                         No time logged yet.
                                     </TableCell>
                                 </TableRow>

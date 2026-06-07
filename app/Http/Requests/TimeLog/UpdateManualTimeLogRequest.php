@@ -12,7 +12,7 @@ class UpdateManualTimeLogRequest extends FormRequest
     {
         return [
             'started_at' => ['required', 'date'],
-            'ended_at' => ['required', 'date', 'after:started_at'],
+            'duration_seconds' => ['required', 'integer', 'min:1', 'max:604800'],
             'note' => ['nullable', 'string', 'max:1000'],
         ];
     }

@@ -89,32 +89,30 @@ class TimeLogService
         return $log;
     }
 
-    public function createManual(Project $project, string $startedAt, string $endedAt, ?string $note = null): TimeLog
+    public function createManual(Project $project, string $startedAt, int $durationSeconds, ?string $note = null): TimeLog
     {
         $start = CarbonImmutable::parse($startedAt);
-        $end = CarbonImmutable::parse($endedAt);
 
         return $project->timeLogs()->create([
             'started_at' => $start,
-            'ended_at' => $end,
-            'duration_seconds' => $start->diffInSeconds($end),
+            'ended_at' => $start->addSeconds($durationSeconds),
+            'duration_seconds' => $durationSeconds,
             'note' => $note,
         ]);
     }
 
-    public function updateManual(TimeLog $log, string $startedAt, string $endedAt, ?string $note): TimeLog
+    public function updateManual(TimeLog $log, string $startedAt, int $durationSeconds, ?string $note): TimeLog
     {
         if ($log->ended_at === null) {
             throw new RuntimeException('Cannot edit a running timer.');
         }
 
         $start = CarbonImmutable::parse($startedAt);
-        $end = CarbonImmutable::parse($endedAt);
 
         $log->update([
             'started_at' => $start,
-            'ended_at' => $end,
-            'duration_seconds' => $start->diffInSeconds($end),
+            'ended_at' => $start->addSeconds($durationSeconds),
+            'duration_seconds' => $durationSeconds,
             'note' => $note,
         ]);
 

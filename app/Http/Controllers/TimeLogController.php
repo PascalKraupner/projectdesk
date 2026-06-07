@@ -59,7 +59,7 @@ class TimeLogController extends Controller
         $this->timeLogService->createManual(
             $project,
             $data['started_at'],
-            $data['ended_at'],
+            (int) $data['duration_seconds'],
             $data['note'] ?? null,
         );
 
@@ -72,7 +72,7 @@ class TimeLogController extends Controller
         $this->timeLogService->updateManual(
             $timeLog,
             $data['started_at'],
-            $data['ended_at'],
+            (int) $data['duration_seconds'],
             $data['note'] ?? null,
         );
 

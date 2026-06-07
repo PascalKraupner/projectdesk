@@ -19,7 +19,7 @@ const emit = defineEmits(['update:open']);
 
 const isEdit = computed(() => props.log !== null);
 
-const form = ref({ started_at: '', ended_at: '', note: '' });
+const form = ref({ started_at: '', hours: 0, minutes: 0, note: '' });
 const errors = ref({});
 const submitting = ref(false);
 
@@ -29,15 +29,23 @@ const toLocalInput = (input) => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+const durationSeconds = computed(() => {
+    const h = Math.max(0, Number(form.value.hours) || 0);
+    const m = Math.max(0, Number(form.value.minutes) || 0);
+    return h * 3600 + m * 60;
+});
+
 watch(
     () => props.open,
     (open) => {
         if (!open) return;
         errors.value = {};
         if (props.log) {
+            const total = Number(props.log.duration_seconds ?? 0);
             form.value = {
                 started_at: toLocalInput(props.log.started_at),
-                ended_at: toLocalInput(props.log.ended_at),
+                hours: Math.floor(total / 3600),
+                minutes: Math.floor((total % 3600) / 60),
                 note: props.log.note ?? '',
             };
         } else {
@@ -45,7 +53,8 @@ watch(
             const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
             form.value = {
                 started_at: toLocalInput(hourAgo),
-                ended_at: toLocalInput(now),
+                hours: 1,
+                minutes: 0,
                 note: '',
             };
         }
@@ -60,7 +69,7 @@ const submit = () => {
     submitting.value = true;
     const payload = {
         started_at: localToIso(form.value.started_at),
-        ended_at: localToIso(form.value.ended_at),
+        duration_seconds: durationSeconds.value,
         note: form.value.note.trim() === '' ? null : form.value.note,
     };
     const opts = {
@@ -83,13 +92,13 @@ const submit = () => {
             <DialogHeader>
                 <DialogTitle>{{ isEdit ? 'Edit time entry' : 'Add time entry' }}</DialogTitle>
                 <DialogDescription>
-                    {{ isEdit ? 'Adjust start, end, or note.' : 'Log time you forgot to track.' }}
+                    {{ isEdit ? 'Adjust start, duration, or note.' : 'Log time you forgot to track.' }}
                 </DialogDescription>
             </DialogHeader>
 
             <form @submit.prevent="submit" class="space-y-4">
                 <div class="space-y-2">
-                    <Label for="started_at">Start</Label>
+                    <Label for="started_at">Started</Label>
                     <Input
                         id="started_at"
                         v-model="form.started_at"
@@ -102,15 +111,32 @@ const submit = () => {
                 </div>
 
                 <div class="space-y-2">
-                    <Label for="ended_at">End</Label>
-                    <Input
-                        id="ended_at"
-                        v-model="form.ended_at"
-                        type="datetime-local"
-                        required
-                    />
-                    <p v-if="errors.ended_at" class="text-sm text-destructive">
-                        {{ errors.ended_at }}
+                    <Label>Duration</Label>
+                    <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-1">
+                            <Input
+                                id="duration_hours"
+                                v-model.number="form.hours"
+                                type="number"
+                                min="0"
+                                class="w-20"
+                            />
+                            <span class="text-sm text-muted-foreground">h</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <Input
+                                id="duration_minutes"
+                                v-model.number="form.minutes"
+                                type="number"
+                                min="0"
+                                max="59"
+                                class="w-20"
+                            />
+                            <span class="text-sm text-muted-foreground">m</span>
+                        </div>
+                    </div>
+                    <p v-if="errors.duration_seconds" class="text-sm text-destructive">
+                        {{ errors.duration_seconds }}
                     </p>
                 </div>
 
@@ -128,7 +154,7 @@ const submit = () => {
 
                 <DialogFooter>
                     <Button type="button" variant="outline" @click="close">Cancel</Button>
-                    <Button type="submit" :disabled="submitting">
+                    <Button type="submit" :disabled="submitting || durationSeconds < 1">
                         {{ isEdit ? 'Save' : 'Add entry' }}
                     </Button>
                 </DialogFooter>

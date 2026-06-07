@@ -174,7 +174,7 @@ class TimeLogControllerTest extends TestCase
         $this->actingAs($user)
             ->post("/projects/{$project->id}/time-logs/manual", [
                 'started_at' => '2026-04-19 09:00:00',
-                'ended_at' => '2026-04-19 10:30:00',
+                'duration_seconds' => 5400,
                 'note' => 'Worked on invoices',
             ])
             ->assertSessionHasNoErrors();
@@ -195,14 +195,14 @@ class TimeLogControllerTest extends TestCase
         $this->actingAs($user)
             ->post("/projects/{$project->id}/time-logs/manual", [
                 'started_at' => '2026-04-19 09:00:00',
-                'ended_at' => '2026-04-19 09:30:00',
+                'duration_seconds' => 1800,
             ])
             ->assertSessionHasNoErrors();
 
         $this->assertDatabaseCount('time_logs', 2);
     }
 
-    public function test_store_manual_validates_end_after_start(): void
+    public function test_store_manual_validates_positive_duration(): void
     {
         $user = User::factory()->create();
         $project = Project::factory()->create();
@@ -210,9 +210,9 @@ class TimeLogControllerTest extends TestCase
         $this->actingAs($user)
             ->post("/projects/{$project->id}/time-logs/manual", [
                 'started_at' => '2026-04-19 10:00:00',
-                'ended_at' => '2026-04-19 09:00:00',
+                'duration_seconds' => 0,
             ])
-            ->assertSessionHasErrors('ended_at');
+            ->assertSessionHasErrors('duration_seconds');
 
         $this->assertDatabaseCount('time_logs', 0);
     }
@@ -230,13 +230,14 @@ class TimeLogControllerTest extends TestCase
         $this->actingAs($user)
             ->patch("/time-logs/{$log->id}/manual", [
                 'started_at' => '2026-04-19 14:00:00',
-                'ended_at' => '2026-04-19 15:15:00',
+                'duration_seconds' => 4500,
                 'note' => 'New',
             ])
             ->assertSessionHasNoErrors();
 
         $log->refresh();
         $this->assertSame(4500, $log->duration_seconds);
+        $this->assertSame('2026-04-19 15:15:00', $log->ended_at->format('Y-m-d H:i:s'));
         $this->assertSame('New', $log->note);
     }
 
@@ -251,7 +252,7 @@ class TimeLogControllerTest extends TestCase
             ->actingAs($user)
             ->patch("/time-logs/{$log->id}/manual", [
                 'started_at' => '2026-04-19 09:00:00',
-                'ended_at' => '2026-04-19 10:00:00',
+                'duration_seconds' => 3600,
             ]);
     }
 

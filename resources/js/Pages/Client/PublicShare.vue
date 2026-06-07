@@ -117,7 +117,6 @@ const formatDateTime = (iso) =>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Started</TableHead>
-                                <TableHead>Ended</TableHead>
                                 <TableHead>Duration</TableHead>
                                 <TableHead>Note</TableHead>
                             </TableRow>
@@ -125,7 +124,6 @@ const formatDateTime = (iso) =>
                         <TableBody>
                             <TableRow v-for="log in project.time_logs" :key="log.id">
                                 <TableCell class="text-sm">{{ formatDateTime(log.started_at) }}</TableCell>
-                                <TableCell class="text-sm">{{ formatDateTime(log.ended_at) }}</TableCell>
                                 <TableCell class="font-mono tabular-nums">
                                     {{ formatDuration(log.duration_seconds) }}
                                 </TableCell>

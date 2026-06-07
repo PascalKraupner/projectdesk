@@ -3,8 +3,8 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
-import { Play, Search, Square } from 'lucide-vue-next';
-import { formatDuration } from '@/lib/time';
+import { Pause, Play, Search, Square } from 'lucide-vue-next';
+import { formatDuration, liveSeconds as computeLiveSeconds } from '@/lib/time';
 
 const page = usePage();
 const runningTimer = computed(() => page.props.runningTimer);
@@ -58,10 +58,12 @@ onUnmounted(() => clearInterval(tickHandle));
 
 const liveSeconds = computed(() => {
     if (!runningTimer.value) return 0;
-    return (now.value - new Date(runningTimer.value.started_at).getTime()) / 1000;
+    return computeLiveSeconds(runningTimer.value, now.value);
 });
 
 const display = computed(() => formatDuration(liveSeconds.value));
+
+const isPaused = computed(() => !!runningTimer.value?.paused);
 
 const submitting = ref(false);
 
@@ -107,6 +109,34 @@ const stop = () => {
     );
 };
 
+const pause = () => {
+    if (!runningTimer.value || submitting.value) return;
+    submitting.value = true;
+    router.patch(
+        route('time-logs.pause', runningTimer.value.id),
+        {},
+        {
+            preserveScroll: true,
+            preserveState: true,
+            onFinish: () => { submitting.value = false; },
+        },
+    );
+};
+
+const resume = () => {
+    if (!runningTimer.value || submitting.value) return;
+    submitting.value = true;
+    router.patch(
+        route('time-logs.resume', runningTimer.value.id),
+        {},
+        {
+            preserveScroll: true,
+            preserveState: true,
+            onFinish: () => { submitting.value = false; },
+        },
+    );
+};
+
 const onKeydown = (e) => {
     if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -140,7 +170,10 @@ const onBlur = () => {
             v-if="runningTimer"
             class="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1"
         >
-            <span class="h-2 w-2 animate-pulse rounded-full bg-primary" />
+            <span
+                class="h-2 w-2 rounded-full"
+                :class="isPaused ? 'bg-muted-foreground' : 'animate-pulse bg-primary'"
+            />
             <Link
                 :href="route('projects.show', runningTimer.project_id)"
                 class="max-w-[8rem] truncate text-sm font-medium text-foreground hover:underline"
@@ -148,9 +181,32 @@ const onBlur = () => {
             >
                 {{ runningTimer.project_title }}
             </Link>
-            <span class="font-mono text-sm tabular-nums text-foreground">
+            <span
+                class="font-mono text-sm tabular-nums"
+                :class="isPaused ? 'text-muted-foreground' : 'text-foreground'"
+            >
                 {{ display }}
             </span>
+            <Button
+                v-if="isPaused"
+                variant="ghost"
+                size="icon-sm"
+                @click="resume"
+                :disabled="submitting"
+                title="Resume timer"
+            >
+                <Play class="h-4 w-4" />
+            </Button>
+            <Button
+                v-else
+                variant="ghost"
+                size="icon-sm"
+                @click="pause"
+                :disabled="submitting"
+                title="Pause timer"
+            >
+                <Pause class="h-4 w-4" />
+            </Button>
             <Button
                 variant="ghost"
                 size="icon-sm"

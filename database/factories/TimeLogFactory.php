@@ -18,6 +18,7 @@ class TimeLogFactory extends Factory
         return [
             'project_id' => Project::factory(),
             'started_at' => $startedAt,
+            'last_resumed_at' => null,
             'ended_at' => $endedAt,
             'duration_seconds' => $duration,
             'note' => fake()->optional()->sentence(),
@@ -28,8 +29,19 @@ class TimeLogFactory extends Factory
     {
         return $this->state(fn () => [
             'started_at' => now(),
+            'last_resumed_at' => now(),
             'ended_at' => null,
-            'duration_seconds' => null,
+            'duration_seconds' => 0,
+        ]);
+    }
+
+    public function paused(int $accumulatedSeconds = 600): static
+    {
+        return $this->state(fn () => [
+            'started_at' => now()->subSeconds($accumulatedSeconds + 60),
+            'last_resumed_at' => null,
+            'ended_at' => null,
+            'duration_seconds' => $accumulatedSeconds,
         ]);
     }
 }

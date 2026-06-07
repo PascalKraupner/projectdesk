@@ -42,14 +42,14 @@ class HandleInertiaRequests extends Middleware
         ];
     }
 
-    /** @return array{id: int, project_id: int, project_title: ?string, started_at: string}|null */
+    /** @return array{id: int, project_id: int, project_title: ?string, started_at: string, last_resumed_at: ?string, duration_seconds: int, paused: bool}|null */
     private function runningTimer(Request $request): ?array
     {
         if (! $request->user()) {
             return null;
         }
 
-        $log = TimeLog::running()
+        $log = TimeLog::active()
             ->with('project:id,title')
             ->latest('started_at')
             ->first();
@@ -63,6 +63,9 @@ class HandleInertiaRequests extends Middleware
             'project_id' => $log->project_id,
             'project_title' => $log->project?->title,
             'started_at' => $log->started_at?->toIso8601String(),
+            'last_resumed_at' => $log->last_resumed_at?->toIso8601String(),
+            'duration_seconds' => (int) ($log->duration_seconds ?? 0),
+            'paused' => $log->last_resumed_at === null,
         ];
     }
 

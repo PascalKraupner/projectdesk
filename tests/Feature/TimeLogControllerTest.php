@@ -25,8 +25,11 @@ class TimeLogControllerTest extends TestCase
             ->assertRedirect("/projects/{$project->id}");
 
         $this->assertDatabaseCount('time_logs', 1);
-        $this->assertNull(TimeLog::first()->ended_at);
-        $this->assertSame($project->id, TimeLog::first()->project_id);
+        $log = TimeLog::first();
+        $this->assertNull($log->ended_at);
+        $this->assertNotNull($log->last_resumed_at);
+        $this->assertSame(0, $log->duration_seconds);
+        $this->assertSame($project->id, $log->project_id);
     }
 
     public function test_store_can_attach_a_note_at_start(): void
@@ -46,6 +49,19 @@ class TimeLogControllerTest extends TestCase
         $user = User::factory()->create();
         $project = Project::factory()->create(['status' => ProjectStatus::Active]);
         TimeLog::factory()->running()->create(['project_id' => $project->id]);
+
+        $this->expectException(\RuntimeException::class);
+
+        $this->withoutExceptionHandling()
+            ->actingAs($user)
+            ->post("/projects/{$project->id}/time-logs");
+    }
+
+    public function test_store_blocks_starting_when_another_log_is_paused(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['status' => ProjectStatus::Active]);
+        TimeLog::factory()->paused()->create(['project_id' => $project->id]);
 
         $this->expectException(\RuntimeException::class);
 
@@ -85,6 +101,7 @@ class TimeLogControllerTest extends TestCase
         $log = TimeLog::factory()->running()->create([
             'project_id' => $project->id,
             'started_at' => now()->subMinutes(30),
+            'last_resumed_at' => now()->subMinutes(30),
         ]);
 
         $this->actingAs($user)
@@ -93,6 +110,7 @@ class TimeLogControllerTest extends TestCase
 
         $log->refresh();
         $this->assertNotNull($log->ended_at);
+        $this->assertNull($log->last_resumed_at);
         $this->assertGreaterThanOrEqual(1790, $log->duration_seconds);
         $this->assertLessThanOrEqual(1810, $log->duration_seconds);
     }
@@ -337,9 +355,176 @@ class TimeLogControllerTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('runningTimer.project_id', $project->id)
                 ->where('runningTimer.project_title', 'Acme Site')
+                ->where('runningTimer.paused', false)
                 ->has('runningTimer.id')
                 ->has('runningTimer.started_at')
+                ->has('runningTimer.last_resumed_at')
+                ->has('runningTimer.duration_seconds')
             );
+    }
+
+    public function test_running_timer_inertia_prop_reflects_paused_state(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create();
+        TimeLog::factory()->paused(900)->create(['project_id' => $project->id]);
+
+        $this->actingAs($user)
+            ->get("/projects/{$project->id}")
+            ->assertInertia(fn ($page) => $page
+                ->where('runningTimer.paused', true)
+                ->where('runningTimer.last_resumed_at', null)
+                ->where('runningTimer.duration_seconds', 900)
+            );
+    }
+
+    public function test_pause_sets_last_resumed_at_to_null_and_accumulates_duration(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create();
+        $log = TimeLog::factory()->running()->create([
+            'project_id' => $project->id,
+            'started_at' => now()->subMinutes(10),
+            'last_resumed_at' => now()->subMinutes(10),
+            'duration_seconds' => 0,
+        ]);
+
+        $this->actingAs($user)
+            ->patch("/time-logs/{$log->id}/pause")
+            ->assertSessionHasNoErrors();
+
+        $log->refresh();
+        $this->assertNull($log->last_resumed_at);
+        $this->assertNull($log->ended_at);
+        $this->assertGreaterThanOrEqual(590, $log->duration_seconds);
+        $this->assertLessThanOrEqual(610, $log->duration_seconds);
+    }
+
+    public function test_pause_fails_when_log_is_already_paused(): void
+    {
+        $user = User::factory()->create();
+        $log = TimeLog::factory()->paused()->create();
+
+        $this->expectException(\RuntimeException::class);
+
+        $this->withoutExceptionHandling()
+            ->actingAs($user)
+            ->patch("/time-logs/{$log->id}/pause");
+    }
+
+    public function test_pause_fails_when_log_is_stopped(): void
+    {
+        $user = User::factory()->create();
+        $log = TimeLog::factory()->create();
+
+        $this->expectException(\RuntimeException::class);
+
+        $this->withoutExceptionHandling()
+            ->actingAs($user)
+            ->patch("/time-logs/{$log->id}/pause");
+    }
+
+    public function test_resume_restarts_the_clock_on_a_paused_log(): void
+    {
+        $user = User::factory()->create();
+        $log = TimeLog::factory()->paused(900)->create();
+
+        $this->actingAs($user)
+            ->patch("/time-logs/{$log->id}/resume")
+            ->assertSessionHasNoErrors();
+
+        $log->refresh();
+        $this->assertNotNull($log->last_resumed_at);
+        $this->assertNull($log->ended_at);
+        $this->assertSame(900, $log->duration_seconds);
+    }
+
+    public function test_resume_reopens_a_stopped_log(): void
+    {
+        $user = User::factory()->create();
+        $log = TimeLog::factory()->create([
+            'started_at' => now()->subDays(2),
+            'ended_at' => now()->subDays(2)->addHours(2),
+            'duration_seconds' => 7200,
+        ]);
+
+        $this->actingAs($user)
+            ->patch("/time-logs/{$log->id}/resume")
+            ->assertSessionHasNoErrors();
+
+        $log->refresh();
+        $this->assertNotNull($log->last_resumed_at);
+        $this->assertNull($log->ended_at);
+        $this->assertSame(7200, $log->duration_seconds);
+    }
+
+    public function test_resume_blocks_when_another_log_is_active(): void
+    {
+        $user = User::factory()->create();
+        TimeLog::factory()->running()->create();
+        $other = TimeLog::factory()->create();
+
+        $this->expectException(\RuntimeException::class);
+
+        $this->withoutExceptionHandling()
+            ->actingAs($user)
+            ->patch("/time-logs/{$other->id}/resume");
+    }
+
+    public function test_resume_fails_when_log_is_already_running(): void
+    {
+        $user = User::factory()->create();
+        $log = TimeLog::factory()->running()->create();
+
+        $this->expectException(\RuntimeException::class);
+
+        $this->withoutExceptionHandling()
+            ->actingAs($user)
+            ->patch("/time-logs/{$log->id}/resume");
+    }
+
+    public function test_stop_from_paused_state_just_sets_ended_at(): void
+    {
+        $user = User::factory()->create();
+        $log = TimeLog::factory()->paused(1200)->create();
+
+        $this->actingAs($user)
+            ->patch("/time-logs/{$log->id}")
+            ->assertSessionHasNoErrors();
+
+        $log->refresh();
+        $this->assertNotNull($log->ended_at);
+        $this->assertNull($log->last_resumed_at);
+        $this->assertSame(1200, $log->duration_seconds);
+    }
+
+    public function test_pause_resume_stop_cycle_sums_segments(): void
+    {
+        $user = User::factory()->create();
+        $log = TimeLog::factory()->running()->create([
+            'started_at' => now()->subSeconds(30),
+            'last_resumed_at' => now()->subSeconds(30),
+            'duration_seconds' => 0,
+        ]);
+
+        $this->actingAs($user)
+            ->patch("/time-logs/{$log->id}/pause")
+            ->assertSessionHasNoErrors();
+
+        $log->refresh();
+        $accumulatedAfterPause = $log->duration_seconds;
+        $this->assertGreaterThanOrEqual(28, $accumulatedAfterPause);
+
+        $log->update(['last_resumed_at' => now()->subSeconds(30)]);
+
+        $this->actingAs($user)
+            ->patch("/time-logs/{$log->id}")
+            ->assertSessionHasNoErrors();
+
+        $log->refresh();
+        $this->assertNotNull($log->ended_at);
+        $this->assertGreaterThanOrEqual($accumulatedAfterPause + 28, $log->duration_seconds);
+        $this->assertLessThanOrEqual($accumulatedAfterPause + 32, $log->duration_seconds);
     }
 
     public function test_unauthenticated_user_cannot_use_time_log_routes(): void
@@ -350,6 +535,8 @@ class TimeLogControllerTest extends TestCase
         $this->post("/projects/{$project->id}/time-logs")->assertRedirect('/login');
         $this->post("/projects/{$project->id}/time-logs/manual")->assertRedirect('/login');
         $this->patch("/time-logs/{$log->id}")->assertRedirect('/login');
+        $this->patch("/time-logs/{$log->id}/pause")->assertRedirect('/login');
+        $this->patch("/time-logs/{$log->id}/resume")->assertRedirect('/login');
         $this->patch("/time-logs/{$log->id}/manual")->assertRedirect('/login');
         $this->delete("/time-logs/{$log->id}")->assertRedirect('/login');
     }

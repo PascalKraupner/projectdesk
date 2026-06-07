@@ -13,12 +13,13 @@ class TimeLog extends Model
     /** @use HasFactory<TimeLogFactory> */
     use HasFactory;
 
-    protected $fillable = ['project_id', 'started_at', 'ended_at', 'duration_seconds', 'note'];
+    protected $fillable = ['project_id', 'started_at', 'last_resumed_at', 'ended_at', 'duration_seconds', 'note'];
 
     protected function casts(): array
     {
         return [
             'started_at' => 'datetime',
+            'last_resumed_at' => 'datetime',
             'ended_at' => 'datetime',
             'duration_seconds' => 'integer',
         ];
@@ -29,9 +30,19 @@ class TimeLog extends Model
         return $this->belongsTo(Project::class);
     }
 
-    public function scopeRunning(Builder $query): Builder
+    public function scopeActive(Builder $query): Builder
     {
         return $query->whereNull('ended_at');
+    }
+
+    public function scopeTicking(Builder $query): Builder
+    {
+        return $query->whereNotNull('last_resumed_at')->whereNull('ended_at');
+    }
+
+    public function scopePaused(Builder $query): Builder
+    {
+        return $query->whereNull('last_resumed_at')->whereNull('ended_at');
     }
 
     public function scopeCompleted(Builder $query): Builder

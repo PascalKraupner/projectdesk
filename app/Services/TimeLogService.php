@@ -16,14 +16,55 @@ class TimeLogService
             throw new RuntimeException('Cannot start a timer on a non-active project.');
         }
 
-        if (TimeLog::running()->exists()) {
-            throw new RuntimeException('A timer is already running.');
+        if (TimeLog::active()->exists()) {
+            throw new RuntimeException('A timer is already in progress.');
         }
 
+        $now = now();
+
         return $project->timeLogs()->create([
-            'started_at' => now(),
+            'started_at' => $now,
+            'last_resumed_at' => $now,
+            'duration_seconds' => 0,
             'note' => $note,
         ]);
+    }
+
+    public function pause(TimeLog $log): TimeLog
+    {
+        if ($log->ended_at !== null) {
+            throw new RuntimeException('Cannot pause a stopped timer.');
+        }
+
+        if ($log->last_resumed_at === null) {
+            throw new RuntimeException('This timer is already paused.');
+        }
+
+        $log->update([
+            'duration_seconds' => ($log->duration_seconds ?? 0)
+                + $log->last_resumed_at->diffInSeconds(now()),
+            'last_resumed_at' => null,
+        ]);
+
+        return $log;
+    }
+
+    public function resume(TimeLog $log): TimeLog
+    {
+        if ($log->last_resumed_at !== null) {
+            throw new RuntimeException('This timer is already running.');
+        }
+
+        if (TimeLog::active()->whereKeyNot($log->getKey())->exists()) {
+            throw new RuntimeException('Another timer is already in progress.');
+        }
+
+        $log->update([
+            'last_resumed_at' => now(),
+            'ended_at' => null,
+        ]);
+
+        return $log;
     }
 
     public function stop(TimeLog $log): TimeLog
@@ -32,11 +73,17 @@ class TimeLogService
             throw new RuntimeException('This timer has already been stopped.');
         }
 
-        $endedAt = now();
+        $now = now();
+        $accumulated = $log->duration_seconds ?? 0;
+
+        if ($log->last_resumed_at !== null) {
+            $accumulated += $log->last_resumed_at->diffInSeconds($now);
+        }
 
         $log->update([
-            'ended_at' => $endedAt,
-            'duration_seconds' => $log->started_at->diffInSeconds($endedAt),
+            'ended_at' => $now,
+            'last_resumed_at' => null,
+            'duration_seconds' => $accumulated,
         ]);
 
         return $log;

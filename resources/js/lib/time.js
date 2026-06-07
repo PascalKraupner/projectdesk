@@ -5,3 +5,9 @@ export const formatDuration = (seconds) => {
     const sec = String(s % 60).padStart(2, '0');
     return `${h}:${m}:${sec}`;
 };
+
+export const liveSeconds = (log, nowMs) => {
+    const base = Number(log?.duration_seconds ?? 0);
+    if (!log?.last_resumed_at) return base;
+    return base + (nowMs - new Date(log.last_resumed_at).getTime()) / 1000;
+};

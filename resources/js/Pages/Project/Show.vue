@@ -15,8 +15,8 @@ import {
 import { ProjectStatus } from '@/Enums/ProjectStatus';
 import { Input } from '@/Components/ui/input';
 import ManualTimeEntryDialog from '@/Components/ManualTimeEntryDialog.vue';
-import { Download, Pencil, Play, Plus, Square, Trash2 } from 'lucide-vue-next';
-import { formatDuration } from '@/lib/time';
+import { Download, Pause, Pencil, Play, Plus, Square, Trash2 } from 'lucide-vue-next';
+import { formatDuration, liveSeconds as computeLiveSeconds } from '@/lib/time';
 import { statusClass } from '@/lib/projectStatus';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
@@ -51,22 +51,33 @@ const runningLog = computed(() =>
     props.project.time_logs.find((l) => l.ended_at === null) ?? null,
 );
 
+const isPaused = computed(() => !!runningLog.value && !runningLog.value.last_resumed_at);
+const isTicking = computed(() => !!runningLog.value && !!runningLog.value.last_resumed_at);
+
 const completedLogs = computed(() =>
     props.project.time_logs.filter((l) => l.ended_at !== null),
 );
 
 const liveSeconds = computed(() => {
     if (!runningLog.value) return 0;
-    return (now.value - new Date(runningLog.value.started_at).getTime()) / 1000;
+    return computeLiveSeconds(runningLog.value, now.value);
 });
 
 const display = computed(() =>
     runningLog.value ? formatDuration(liveSeconds.value) : '00:00:00',
 );
 
-const totalSeconds = computed(() =>
-    (props.project.total_seconds ?? 0) + (runningLog.value ? liveSeconds.value : 0),
-);
+const totalSeconds = computed(() => {
+    let total = 0;
+    for (const log of props.project.time_logs) {
+        if (runningLog.value && log.id === runningLog.value.id) {
+            total += liveSeconds.value;
+        } else {
+            total += log.duration_seconds ?? 0;
+        }
+    }
+    return total;
+});
 
 const formatDateTime = (iso) =>
     new Date(iso).toLocaleString(undefined, {
@@ -87,6 +98,27 @@ const start = () => {
 const stop = () => {
     if (!runningLog.value) return;
     router.patch(route('time-logs.update', runningLog.value.id), {}, {
+        preserveScroll: true,
+    });
+};
+
+const pause = () => {
+    if (!isTicking.value) return;
+    router.patch(route('time-logs.pause', runningLog.value.id), {}, {
+        preserveScroll: true,
+    });
+};
+
+const resumeRunning = () => {
+    if (!isPaused.value) return;
+    router.patch(route('time-logs.resume', runningLog.value.id), {}, {
+        preserveScroll: true,
+    });
+};
+
+const resumeLog = (log) => {
+    if (runningTimer.value) return;
+    router.patch(route('time-logs.resume', log.id), {}, {
         preserveScroll: true,
     });
 };
@@ -205,10 +237,14 @@ const openEditEntry = (log) => {
                     <Card class="lg:col-span-2">
                         <CardContent class="flex flex-col items-center py-12">
                             <div
-                                class="font-mono text-7xl font-light tracking-wider text-foreground tabular-nums"
-                                :class="{ 'text-primary': runningLog }"
+                                class="font-mono text-7xl font-light tracking-wider tabular-nums"
+                                :class="isTicking ? 'text-primary' : (isPaused ? 'text-muted-foreground' : 'text-foreground')"
                             >
                                 {{ display }}
+                            </div>
+
+                            <div v-if="isPaused" class="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
+                                Paused
                             </div>
 
                             <Separator class="my-8 w-24" />
@@ -244,25 +280,49 @@ const openEditEntry = (log) => {
                             </div>
 
                             <div class="flex flex-col items-center gap-3">
-                                <Button
-                                    v-if="!runningLog"
-                                    @click="start"
-                                    size="lg"
-                                    class="h-14 w-14 rounded-full"
-                                    :disabled="!!startDisabledReason"
-                                >
-                                    <Play class="h-6 w-6" />
-                                </Button>
-                                <Button
-                                    v-else
-                                    @click="stop"
-                                    size="lg"
-                                    class="h-14 w-14 rounded-full"
-                                >
-                                    <Square class="h-6 w-6" />
-                                </Button>
+                                <div class="flex items-center gap-3">
+                                    <Button
+                                        v-if="!runningLog"
+                                        @click="start"
+                                        size="lg"
+                                        class="h-14 w-14 rounded-full"
+                                        :disabled="!!startDisabledReason"
+                                        title="Start timer"
+                                    >
+                                        <Play class="h-6 w-6" />
+                                    </Button>
+                                    <template v-else>
+                                        <Button
+                                            v-if="isPaused"
+                                            @click="resumeRunning"
+                                            size="lg"
+                                            class="h-14 w-14 rounded-full"
+                                            title="Resume timer"
+                                        >
+                                            <Play class="h-6 w-6" />
+                                        </Button>
+                                        <Button
+                                            v-else
+                                            @click="pause"
+                                            size="lg"
+                                            class="h-14 w-14 rounded-full"
+                                            title="Pause timer"
+                                        >
+                                            <Pause class="h-6 w-6" />
+                                        </Button>
+                                        <Button
+                                            @click="stop"
+                                            variant="outline"
+                                            size="lg"
+                                            class="h-14 w-14 rounded-full"
+                                            title="Stop timer"
+                                        >
+                                            <Square class="h-6 w-6" />
+                                        </Button>
+                                    </template>
+                                </div>
                                 <p
-                                    v-if="startDisabledReason === 'elsewhere'"
+                                    v-if="!runningLog && startDisabledReason === 'elsewhere'"
                                     class="text-xs text-muted-foreground"
                                 >
                                     Timer running on
@@ -274,7 +334,7 @@ const openEditEntry = (log) => {
                                     </Link>
                                 </p>
                                 <p
-                                    v-else-if="startDisabledReason === 'inactive'"
+                                    v-else-if="!runningLog && startDisabledReason === 'inactive'"
                                     class="text-xs text-muted-foreground capitalize"
                                 >
                                     Project is {{ project.status }}
@@ -376,6 +436,15 @@ const openEditEntry = (log) => {
                                     </TableCell>
                                     <TableCell class="text-right">
                                         <div class="flex items-center justify-end gap-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-sm"
+                                                @click="resumeLog(log)"
+                                                :disabled="!!runningTimer"
+                                                :title="runningTimer ? 'Stop the active timer first' : 'Resume this entry'"
+                                            >
+                                                <Play class="h-4 w-4" />
+                                            </Button>
                                             <Button variant="ghost" size="icon-sm" @click="openEditEntry(log)">
                                                 <Pencil class="h-4 w-4" />
                                             </Button>

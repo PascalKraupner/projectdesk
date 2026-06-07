@@ -39,6 +39,20 @@ class TimeLogController extends Controller
         return back();
     }
 
+    public function pause(TimeLog $timeLog): RedirectResponse
+    {
+        $this->timeLogService->pause($timeLog);
+
+        return back();
+    }
+
+    public function resume(TimeLog $timeLog): RedirectResponse
+    {
+        $this->timeLogService->resume($timeLog);
+
+        return back();
+    }
+
     public function storeManual(StoreManualTimeLogRequest $request, Project $project): RedirectResponse
     {
         $data = $request->validated();

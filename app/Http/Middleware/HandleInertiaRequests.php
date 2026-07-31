@@ -39,6 +39,10 @@ class HandleInertiaRequests extends Middleware
             ],
             'runningTimer' => fn () => $this->runningTimer($request),
             'timerProjects' => fn () => $this->timerProjects($request),
+            'flash' => [
+                // Plaintext API key, flashed once right after creation and never stored.
+                'apiKey' => $request->session()->get('apiKey'),
+            ],
         ];
     }
 

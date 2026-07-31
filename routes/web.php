@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\ApiKeyController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ClientShareController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\OpenApiController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TimeLogController;
@@ -32,6 +34,12 @@ Route::middleware('auth')->group(function () {
     Route::patch('/time-logs/{timeLog}/manual', [TimeLogController::class, 'updateManual'])->name('time-logs.update-manual');
     Route::patch('/time-logs/{timeLog}/note', [TimeLogController::class, 'updateNote'])->name('time-logs.update-note');
     Route::delete('/time-logs/{timeLog}', [TimeLogController::class, 'destroy'])->name('time-logs.destroy');
+
+    Route::get('/api-keys', [ApiKeyController::class, 'index'])->name('api-keys.index');
+    Route::post('/api-keys', [ApiKeyController::class, 'store'])->name('api-keys.store');
+    Route::delete('/api-keys/{apiKey}', [ApiKeyController::class, 'destroy'])->name('api-keys.destroy');
+
+    Route::get('/openapi.yaml', OpenApiController::class)->name('openapi');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

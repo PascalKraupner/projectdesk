@@ -67,6 +67,25 @@ alias sail='./vendor/bin/sail'
 
 Then: `sail artisan ...`, `sail npm run dev`, etc.
 
+## API
+
+A token-authenticated JSON API covers clients, projects and time entries, plus
+control of the live timer.
+
+Create a key in the web UI under **API keys** (in the user menu). The plaintext
+key is shown once at creation; only its hash is stored. Keys carry full access
+and may optionally expire. There is deliberately no endpoint that mints keys, so
+a leaked key cannot be used to issue more.
+
+```bash
+curl https://projectdesk.kraupner.me/api/v1/clients \
+  -H 'Authorization: Bearer <key>' \
+  -H 'Accept: application/json'
+```
+
+The full contract lives in [`resources/api/openapi.yaml`](resources/api/openapi.yaml)
+(OpenAPI 3.1) and is served to logged-in users at `/openapi.yaml`.
+
 ## Production
 
 Auto-deployed via GitHub Actions to a self-hosted VPS behind Traefik.

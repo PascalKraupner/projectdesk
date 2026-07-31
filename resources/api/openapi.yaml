@@ -1,0 +1,702 @@
+openapi: 3.1.0
+
+info:
+  title: Project Desk API
+  version: "1.0.0"
+  license:
+    name: MIT
+    identifier: MIT
+  description: |
+    Read/write access to clients, projects and time entries, plus control of the
+    single running timer.
+
+    ## Authentication
+
+    Every endpoint requires an API key, sent as a bearer token:
+
+    ```
+    Authorization: Bearer 7|AbCdEf...
+    ```
+
+    Keys are created in the web UI under **API keys** while logged in. There is no
+    API endpoint that mints keys, by design: a leaked key cannot be used to issue
+    more keys. The plaintext key is shown exactly once at creation; only its hash
+    is stored, so it cannot be recovered afterwards. Keys carry full access and may
+    optionally expire.
+
+    ## Conventions
+
+    - Every response body is wrapped in a `data` key. List endpoints add `links`
+      and `meta` for pagination.
+    - `PATCH` is a partial update: omitted fields are left untouched.
+    - Timestamps are ISO 8601 in UTC. `duration_seconds` is the authoritative
+      length of an entry; for a running entry it holds only the time accumulated
+      before the current segment, so add `now - last_resumed_at` for a live total.
+
+servers:
+  - url: https://projectdesk.kraupner.me/api/v1
+    description: Production
+  - url: http://localhost/api/v1
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Clients
+    description: The people you bill. Carry the hourly rate and currency.
+  - name: Projects
+    description: Units of work belonging to a client. Time is tracked against these.
+  - name: Time entries
+    description: Individual tracked stretches of work, logged after the fact or by the timer.
+  - name: Timer
+    description: Control of the single live timer. At most one entry is open at a time.
+
+paths:
+  /clients:
+    get:
+      tags: [Clients]
+      operationId: listClients
+      summary: List clients
+      parameters:
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: A page of clients.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Client" }
+                  links: { $ref: "#/components/schemas/PaginationLinks" }
+                  meta: { $ref: "#/components/schemas/PaginationMeta" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+    post:
+      tags: [Clients]
+      operationId: createClient
+      summary: Create a client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 255, examples: ["Acme GmbH"] }
+                email:
+                  type: [string, "null"]
+                  format: email
+                  maxLength: 255
+                  description: Must be unique across clients.
+                hourly_rate:
+                  type: [number, "null"]
+                  minimum: 0
+                  maximum: 99999.99
+                currency:
+                  $ref: "#/components/schemas/Currency"
+      responses:
+        "201":
+          description: The created client.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Client" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /clients/{client}:
+    parameters:
+      - $ref: "#/components/parameters/ClientId"
+    get:
+      tags: [Clients]
+      operationId: getClient
+      summary: Get a client
+      responses:
+        "200":
+          description: The client, including `projects_count` and `total_seconds`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Client" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Clients]
+      operationId: updateClient
+      summary: Update a client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 255 }
+                email: { type: [string, "null"], format: email, maxLength: 255 }
+                hourly_rate: { type: [number, "null"], minimum: 0, maximum: 99999.99 }
+                currency: { $ref: "#/components/schemas/Currency" }
+      responses:
+        "200":
+          description: The updated client.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Client" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+    delete:
+      tags: [Clients]
+      operationId: deleteClient
+      summary: Delete a client
+      description: Cascades to the client's projects and their time entries.
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /projects:
+    get:
+      tags: [Projects]
+      operationId: listProjects
+      summary: List projects
+      parameters:
+        - $ref: "#/components/parameters/PerPage"
+        - name: client_id
+          in: query
+          schema: { type: integer }
+          description: Only projects belonging to this client.
+      responses:
+        "200":
+          description: A page of projects.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Project" }
+                  links: { $ref: "#/components/schemas/PaginationLinks" }
+                  meta: { $ref: "#/components/schemas/PaginationMeta" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+    post:
+      tags: [Projects]
+      operationId: createProject
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_id, title]
+              properties:
+                client_id: { type: integer }
+                title: { type: string, maxLength: 255, examples: ["Website Relaunch"] }
+                status:
+                  allOf:
+                    - $ref: "#/components/schemas/ProjectStatus"
+                    - description: Defaults to `active` when omitted.
+      responses:
+        "201":
+          description: The created project.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Project" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /projects/{project}:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    get:
+      tags: [Projects]
+      operationId: getProject
+      summary: Get a project
+      responses:
+        "200":
+          description: The project, including `total_seconds`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Project" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Projects]
+      operationId: updateProject
+      summary: Update a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                client_id: { type: integer }
+                title: { type: string, maxLength: 255 }
+                status: { $ref: "#/components/schemas/ProjectStatus" }
+      responses:
+        "200":
+          description: The updated project.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Project" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+    delete:
+      tags: [Projects]
+      operationId: deleteProject
+      summary: Delete a project
+      description: Cascades to the project's time entries.
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /time-entries:
+    get:
+      tags: [Time entries]
+      operationId: listTimeEntries
+      summary: List time entries
+      description: Newest first, by `started_at`.
+      parameters:
+        - $ref: "#/components/parameters/PerPage"
+        - name: project_id
+          in: query
+          schema: { type: integer }
+        - name: client_id
+          in: query
+          schema: { type: integer }
+          description: Entries on any project belonging to this client.
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+          description: Only entries with `started_at` at or after this instant.
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+          description: Only entries with `started_at` at or before this instant.
+      responses:
+        "200":
+          description: A page of time entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/TimeEntry" }
+                  links: { $ref: "#/components/schemas/PaginationLinks" }
+                  meta: { $ref: "#/components/schemas/PaginationMeta" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+    post:
+      tags: [Time entries]
+      operationId: createTimeEntry
+      summary: Log a time entry
+      description: |
+        Creates a completed entry after the fact. `ended_at` is derived as
+        `started_at + duration_seconds`. To track time live instead, use the
+        timer endpoints.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_id, started_at, duration_seconds]
+              properties:
+                project_id: { type: integer }
+                started_at:
+                  type: string
+                  format: date-time
+                  examples: ["2026-07-03T09:00:00+00:00"]
+                  description: |
+                    Accepts any ISO 8601 timestamp. A UTC offset is honoured and
+                    converted, so `09:00:00+02:00` is stored as `07:00:00Z`.
+                    Without an offset the value is read as UTC.
+                duration_seconds:
+                  type: integer
+                  minimum: 1
+                  maximum: 604800
+                  description: At most 7 days.
+                note: { type: [string, "null"], maxLength: 1000 }
+      responses:
+        "201":
+          description: The created entry.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/TimeEntry" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /time-entries/{timeEntry}:
+    parameters:
+      - $ref: "#/components/parameters/TimeEntryId"
+    get:
+      tags: [Time entries]
+      operationId: getTimeEntry
+      summary: Get a time entry
+      responses:
+        "200":
+          description: The entry.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/TimeEntry" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Time entries]
+      operationId: updateTimeEntry
+      summary: Update a time entry
+      description: |
+        Only completed entries can be edited. Editing a running or paused entry
+        returns 409. `ended_at` is recomputed from the resulting
+        `started_at + duration_seconds`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                started_at: { type: string, format: date-time }
+                duration_seconds: { type: integer, minimum: 1, maximum: 604800 }
+                note: { type: [string, "null"], maxLength: 1000 }
+      responses:
+        "200":
+          description: The updated entry.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/TimeEntry" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/TimerConflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+    delete:
+      tags: [Time entries]
+      operationId: deleteTimeEntry
+      summary: Delete a time entry
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /timer:
+    get:
+      tags: [Timer]
+      operationId: getCurrentTimer
+      summary: Get the current timer
+      description: |
+        Returns the one entry that is running or paused, or `null` when nothing
+        is being tracked.
+      responses:
+        "200":
+          description: The current entry, or null.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    oneOf:
+                      - $ref: "#/components/schemas/TimeEntry"
+                      - type: "null"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /projects/{project}/timer/start:
+    parameters:
+      - $ref: "#/components/parameters/ProjectId"
+    post:
+      tags: [Timer]
+      operationId: startTimer
+      summary: Start the timer on a project
+      description: |
+        At most one entry may be running or paused at a time, and the project
+        must be `active`. Either violation returns 409.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: [string, "null"], maxLength: 1000 }
+      responses:
+        "201":
+          description: The started entry.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/TimeEntry" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/TimerConflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /time-entries/{timeEntry}/pause:
+    parameters:
+      - $ref: "#/components/parameters/TimeEntryId"
+    patch:
+      tags: [Timer]
+      operationId: pauseTimeEntry
+      summary: Pause a running entry
+      description: |
+        Folds the elapsed segment into `duration_seconds` and clears
+        `last_resumed_at`. Pausing an already paused or completed entry returns 409.
+      responses:
+        "200":
+          description: The paused entry.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/TimeEntry" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/TimerConflict" }
+
+  /time-entries/{timeEntry}/resume:
+    parameters:
+      - $ref: "#/components/parameters/TimeEntryId"
+    patch:
+      tags: [Timer]
+      operationId: resumeTimeEntry
+      summary: Resume a paused or completed entry
+      description: |
+        Reopens the entry and starts a new segment, clearing `ended_at` if it was
+        set. Returns 409 if this entry is already running or another entry is in
+        progress.
+      responses:
+        "200":
+          description: The resumed entry.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/TimeEntry" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/TimerConflict" }
+
+  /time-entries/{timeEntry}/stop:
+    parameters:
+      - $ref: "#/components/parameters/TimeEntryId"
+    patch:
+      tags: [Timer]
+      operationId: stopTimeEntry
+      summary: Stop an entry
+      description: |
+        Folds any running segment into `duration_seconds` and sets `ended_at`.
+        Stopping an already completed entry returns 409.
+      responses:
+        "200":
+          description: The completed entry.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/TimeEntry" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/TimerConflict" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: An API key created in the web UI under **API keys**.
+
+  parameters:
+    PerPage:
+      name: per_page
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    ClientId:
+      name: client
+      in: path
+      required: true
+      schema: { type: integer }
+    ProjectId:
+      name: project
+      in: path
+      required: true
+      schema: { type: integer }
+    TimeEntryId:
+      name: timeEntry
+      in: path
+      required: true
+      schema: { type: integer }
+
+  schemas:
+    Currency:
+      type: string
+      enum: [EUR, USD]
+      default: EUR
+
+    ProjectStatus:
+      type: string
+      enum: [active, paused, completed]
+
+    TimeEntryState:
+      type: string
+      enum: [running, paused, completed]
+      description: |
+        Derived, not stored. `running` has `last_resumed_at` set and no
+        `ended_at`; `paused` has neither; `completed` has `ended_at`.
+
+    Client:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: [string, "null"], format: email }
+        hourly_rate:
+          type: [number, "null"]
+          description: Billing rate per hour, in `currency`.
+        currency: { $ref: "#/components/schemas/Currency" }
+        projects_count:
+          type: integer
+          description: Present on list and single-client responses only.
+        total_seconds:
+          type: integer
+          description: All-time tracked seconds. List and single-client responses only.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Project:
+      type: object
+      properties:
+        id: { type: integer }
+        client_id: { type: integer }
+        title: { type: string }
+        status: { $ref: "#/components/schemas/ProjectStatus" }
+        total_seconds:
+          type: integer
+          description: All-time tracked seconds. List and single-project responses only.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    TimeEntry:
+      type: object
+      properties:
+        id: { type: integer }
+        project_id: { type: integer }
+        state: { $ref: "#/components/schemas/TimeEntryState" }
+        started_at: { type: string, format: date-time }
+        last_resumed_at:
+          type: [string, "null"]
+          format: date-time
+          description: Start of the currently running segment; null unless running.
+        ended_at: { type: [string, "null"], format: date-time }
+        duration_seconds:
+          type: integer
+          description: |
+            Accumulated seconds across all completed segments. For a running
+            entry this excludes the current segment.
+        note: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    PaginationLinks:
+      type: object
+      properties:
+        first: { type: [string, "null"] }
+        last: { type: [string, "null"] }
+        prev: { type: [string, "null"] }
+        next: { type: [string, "null"] }
+
+    PaginationMeta:
+      type: object
+      properties:
+        current_page: { type: integer }
+        from: { type: [integer, "null"] }
+        last_page: { type: integer }
+        path: { type: string }
+        per_page: { type: integer }
+        to: { type: [integer, "null"] }
+        total: { type: integer }
+
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+
+  responses:
+    Unauthorized:
+      description: Missing, malformed, revoked or expired API key.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example:
+            message: Unauthenticated.
+    NotFound:
+      description: No such record.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TimerConflict:
+      description: |
+        The request conflicts with the current timer state, for example starting
+        a second timer or editing an entry that is still running.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example:
+            message: A timer is already in progress.
+    ValidationError:
+      description: One or more fields failed validation.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message: { type: string }
+              errors:
+                type: object
+                additionalProperties:
+                  type: array
+                  items: { type: string }
+          example:
+            message: The name field is required.
+            errors:
+              name: ["The name field is required."]

@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\TimeEntryState;
 use Database\Factories\TimeLogFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -28,6 +30,15 @@ class TimeLog extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    protected function state(): Attribute
+    {
+        return Attribute::get(fn (): TimeEntryState => match (true) {
+            $this->ended_at !== null => TimeEntryState::Completed,
+            $this->last_resumed_at !== null => TimeEntryState::Running,
+            default => TimeEntryState::Paused,
+        });
     }
 
     public function scopeActive(Builder $query): Builder

@@ -3,21 +3,43 @@
 namespace App\Services;
 
 use App\Enums\ProjectStatus;
+use App\Exceptions\TimerConflictException;
 use App\Models\Project;
 use App\Models\TimeLog;
 use Carbon\CarbonImmutable;
-use RuntimeException;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class TimeLogService
 {
+    /**
+     * @param  array{project_id?: int|null, client_id?: int|null, from?: string|null, to?: string|null}  $filters
+     * @return LengthAwarePaginator<int, TimeLog>
+     */
+    public function paginate(int $perPage, array $filters = []): LengthAwarePaginator
+    {
+        return TimeLog::query()
+            ->when($filters['project_id'] ?? null, fn ($q, $id) => $q->where('project_id', $id))
+            ->when($filters['client_id'] ?? null, fn ($q, $id) => $q
+                ->whereHas('project', fn ($p) => $p->where('client_id', $id)))
+            ->when($filters['from'] ?? null, fn ($q, $from) => $q->where('started_at', '>=', $from))
+            ->when($filters['to'] ?? null, fn ($q, $to) => $q->where('started_at', '<=', $to))
+            ->latest('started_at')
+            ->paginate($perPage);
+    }
+
+    public function current(): ?TimeLog
+    {
+        return TimeLog::active()->latest('started_at')->first();
+    }
+
     public function start(Project $project, ?string $note = null): TimeLog
     {
         if ($project->status !== ProjectStatus::Active) {
-            throw new RuntimeException('Cannot start a timer on a non-active project.');
+            throw new TimerConflictException('Cannot start a timer on a non-active project.');
         }
 
         if (TimeLog::active()->exists()) {
-            throw new RuntimeException('A timer is already in progress.');
+            throw new TimerConflictException('A timer is already in progress.');
         }
 
         $now = now();
@@ -33,11 +55,11 @@ class TimeLogService
     public function pause(TimeLog $log): TimeLog
     {
         if ($log->ended_at !== null) {
-            throw new RuntimeException('Cannot pause a stopped timer.');
+            throw new TimerConflictException('Cannot pause a stopped timer.');
         }
 
         if ($log->last_resumed_at === null) {
-            throw new RuntimeException('This timer is already paused.');
+            throw new TimerConflictException('This timer is already paused.');
         }
 
         $log->update([
@@ -52,11 +74,11 @@ class TimeLogService
     public function resume(TimeLog $log): TimeLog
     {
         if ($log->last_resumed_at !== null) {
-            throw new RuntimeException('This timer is already running.');
+            throw new TimerConflictException('This timer is already running.');
         }
 
         if (TimeLog::active()->whereKeyNot($log->getKey())->exists()) {
-            throw new RuntimeException('Another timer is already in progress.');
+            throw new TimerConflictException('Another timer is already in progress.');
         }
 
         $log->update([
@@ -70,7 +92,7 @@ class TimeLogService
     public function stop(TimeLog $log): TimeLog
     {
         if ($log->ended_at !== null) {
-            throw new RuntimeException('This timer has already been stopped.');
+            throw new TimerConflictException('This timer has already been stopped.');
         }
 
         $now = now();
@@ -89,9 +111,16 @@ class TimeLogService
         return $log;
     }
 
+    public function createManualForProject(int $projectId, string $startedAt, int $durationSeconds, ?string $note = null): TimeLog
+    {
+        return $this->createManual(Project::findOrFail($projectId), $startedAt, $durationSeconds, $note);
+    }
+
     public function createManual(Project $project, string $startedAt, int $durationSeconds, ?string $note = null): TimeLog
     {
-        $start = CarbonImmutable::parse($startedAt);
+        // Normalise to UTC: Eloquent formats a Carbon in its own timezone, so an
+        // offset-bearing input would otherwise be stored as the wrong instant.
+        $start = CarbonImmutable::parse($startedAt)->utc();
 
         return $project->timeLogs()->create([
             'started_at' => $start,
@@ -104,10 +133,10 @@ class TimeLogService
     public function updateManual(TimeLog $log, string $startedAt, int $durationSeconds, ?string $note): TimeLog
     {
         if ($log->ended_at === null) {
-            throw new RuntimeException('Cannot edit a running timer.');
+            throw new TimerConflictException('Cannot edit a running timer.');
         }
 
-        $start = CarbonImmutable::parse($startedAt);
+        $start = CarbonImmutable::parse($startedAt)->utc();
 
         $log->update([
             'started_at' => $start,
@@ -117,6 +146,17 @@ class TimeLogService
         ]);
 
         return $log;
+    }
+
+    /** @param  array<string, mixed>  $data */
+    public function updateManualPartial(TimeLog $log, array $data): TimeLog
+    {
+        return $this->updateManual(
+            $log,
+            $data['started_at'] ?? $log->started_at->toIso8601String(),
+            (int) ($data['duration_seconds'] ?? $log->duration_seconds),
+            array_key_exists('note', $data) ? $data['note'] : $log->note,
+        );
     }
 
     public function updateNote(TimeLog $log, ?string $note): TimeLog

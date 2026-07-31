@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Project;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
 class ProjectService
@@ -13,6 +14,21 @@ class ProjectService
             ->withSum('timeLogs as total_seconds', 'duration_seconds')
             ->latest()
             ->get();
+    }
+
+    /** @return LengthAwarePaginator<int, Project> */
+    public function paginate(int $perPage, ?int $clientId = null): LengthAwarePaginator
+    {
+        return Project::withSum('timeLogs as total_seconds', 'duration_seconds')
+            ->when($clientId, fn ($q, $id) => $q->where('client_id', $id))
+            ->latest()
+            ->paginate($perPage);
+    }
+
+    public function findWithTotals(int $id): Project
+    {
+        return Project::withSum('timeLogs as total_seconds', 'duration_seconds')
+            ->findOrFail($id);
     }
 
     public function find(int $id): Project

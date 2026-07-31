@@ -122,4 +122,7 @@ jobs:
             docker compose -f compose.prod.yaml pull
             docker compose -f compose.prod.yaml up -d
             docker compose -f compose.prod.yaml exec -T app php artisan migrate --force
-            docker compose -f compose.prod.yaml exec -T app php artisan optimize
+            # No `artisan optimize` step: docker/entrypoint.sh already caches
+            # config, events, routes and views on every container start, which is
+            # exactly what optimize does. Running it again here raced the
+            # entrypoint doing the same work and got OOM-killed on this 2 GB host.

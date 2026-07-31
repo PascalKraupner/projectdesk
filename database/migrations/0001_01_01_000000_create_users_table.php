@@ -5,6 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 return new class extends Migration
 {
@@ -26,7 +27,10 @@ return new class extends Migration
         DB::table('users')->insert([
             'name' => 'Pascal Kraupner',
             'email' => 'pascal@kraupner.me',
-            'password' => Hash::make(env('ADMIN_PASSWORD', 'password')),
+            // Fail safe, not open: with ADMIN_PASSWORD unset or empty this account
+            // gets an unguessable password rather than "password" or the empty
+            // string, and has to be claimed via the reset-password flow.
+            'password' => Hash::make(env('ADMIN_PASSWORD') ?: Str::random(48)),
             'created_at' => now(),
             'updated_at' => now(),
         ]);

@@ -26,9 +26,58 @@ const createdKey = computed(() => page.props.flash?.apiKey ?? null);
 const showForm = ref(false);
 const copyState = ref('idle');
 
-const form = useForm({
-    name: '',
-    expires_at: '',
+const pad = (n) => String(n).padStart(2, '0');
+const toDateInput = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+// Clamped to the end of the target month: bumping setMonth() directly would turn
+// 31 Jan + 1 month into 3 Mar, so a button labelled "1 month" could hand back a
+// date two months out.
+const inMonths = (months) => {
+    const d = new Date();
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + months);
+    const lastDayOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, lastDayOfMonth));
+    return toDateInput(d);
+};
+
+const tomorrow = computed(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return toDateInput(d);
+});
+
+const defaults = () => ({
+    name: `API key ${toDateInput(new Date())}`,
+    expires_at: inMonths(1),
+});
+
+const form = useForm(defaults());
+
+// Recomputed on open so a page left sitting overnight still offers today's date.
+const openForm = () => {
+    form.defaults(defaults());
+    form.reset();
+    form.clearErrors();
+    showForm.value = true;
+};
+
+const closeForm = () => {
+    showForm.value = false;
+    form.reset();
+    form.clearErrors();
+};
+
+const setExpiry = (months) => {
+    form.expires_at = months === null ? '' : inMonths(months);
+};
+
+const expiryLabel = computed(() => {
+    if (form.expires_at === '') return 'Never expires.';
+    const date = new Date(form.expires_at);
+    if (Number.isNaN(date.getTime())) return '';
+    return `Expires ${date.toLocaleDateString(undefined, { dateStyle: 'long' })}.`;
 });
 
 const submit = () => {
@@ -38,6 +87,7 @@ const submit = () => {
     })).post(route('api-keys.store'), {
         preserveScroll: true,
         onSuccess: () => {
+            form.defaults(defaults());
             form.reset();
             showForm.value = false;
         },
@@ -72,7 +122,7 @@ const formatDateTime = (iso) =>
         <template #header>
             <div class="flex items-center justify-between gap-4">
                 <h2 class="text-xl font-semibold leading-tight text-foreground">API keys</h2>
-                <Button v-if="!showForm" variant="outline" size="sm" @click="showForm = true">
+                <Button v-if="!showForm" variant="outline" size="sm" @click="openForm">
                     <Plus class="mr-1 h-4 w-4" />
                     New key
                 </Button>
@@ -134,10 +184,32 @@ const formatDateTime = (iso) =>
                                     </p>
                                 </div>
                                 <div class="space-y-2">
-                                    <Label for="expires_at">Expires (optional)</Label>
-                                    <Input id="expires_at" v-model="form.expires_at" type="date" />
+                                    <Label for="expires_at">Expires</Label>
+                                    <Input
+                                        id="expires_at"
+                                        v-model="form.expires_at"
+                                        type="date"
+                                        :min="tomorrow"
+                                    />
+                                    <div class="flex flex-wrap items-center gap-1">
+                                        <Button type="button" variant="ghost" size="sm" @click="setExpiry(1)">
+                                            1 month
+                                        </Button>
+                                        <Button type="button" variant="ghost" size="sm" @click="setExpiry(3)">
+                                            3 months
+                                        </Button>
+                                        <Button type="button" variant="ghost" size="sm" @click="setExpiry(12)">
+                                            1 year
+                                        </Button>
+                                        <Button type="button" variant="ghost" size="sm" @click="setExpiry(null)">
+                                            Never
+                                        </Button>
+                                    </div>
                                     <p v-if="form.errors.expires_at" class="text-sm text-destructive">
                                         {{ form.errors.expires_at }}
+                                    </p>
+                                    <p v-else class="text-xs text-muted-foreground">
+                                        {{ expiryLabel }}
                                     </p>
                                 </div>
                             </div>
@@ -145,11 +217,7 @@ const formatDateTime = (iso) =>
                                 <Button type="submit" :disabled="form.processing || !form.name">
                                     Create key
                                 </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    @click="showForm = false; form.reset()"
-                                >
+                                <Button type="button" variant="outline" @click="closeForm">
                                     Cancel
                                 </Button>
                             </div>

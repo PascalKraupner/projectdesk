@@ -19,8 +19,19 @@ class StoreApiKeyRequest extends FormRequest
 
     public function expiresAt(): ?CarbonImmutable
     {
-        return $this->filled('expires_at')
-            ? CarbonImmutable::parse($this->validated('expires_at'))
-            : null;
+        if (! $this->filled('expires_at')) {
+            return null;
+        }
+
+        // End of the chosen day in the display timezone: a date-only value would
+        // otherwise parse to midnight, so picking "1 September" would kill the key
+        // as that day began rather than letting it work through it.
+        // ->utc() because Eloquent formats a Carbon in its own timezone, so a
+        // Berlin-zoned value would be stored with its wall-clock digits and read
+        // back as UTC, drifting by the offset.
+        return CarbonImmutable::parse(
+            $this->validated('expires_at'),
+            config('app.display_timezone'),
+        )->endOfDay()->utc();
     }
 }

@@ -129,6 +129,67 @@ class ApiKeyControllerTest extends TestCase
         $this->assertNotNull($user->tokens()->first()->expires_at);
     }
 
+    public function test_an_expiry_lasts_until_the_end_of_the_chosen_day(): void
+    {
+        config(['app.display_timezone' => 'Europe/Berlin']);
+        $this->travelTo('2026-08-01 10:00:00');
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post('/api-keys', [
+            'name' => 'Temporary',
+            'expires_at' => '2026-09-01',
+        ]);
+
+        // End of 1 September in Berlin (UTC+2 in summer) is 21:59:59 UTC.
+        $this->assertSame(
+            '2026-09-01T21:59:59+00:00',
+            $user->tokens()->first()->expires_at->toIso8601String(),
+        );
+    }
+
+    /**
+     * One request per test on purpose: the Sanctum guard caches its resolved user
+     * on the application instance, which persists across requests within a single
+     * test and would mask the expiry.
+     */
+    public function test_a_key_still_works_on_its_expiry_day(): void
+    {
+        $key = $this->keyExpiring('2026-09-01');
+
+        $this->travelTo('2026-09-01 12:00:00');
+
+        $this->withToken($key)->getJson('/api/v1/clients')->assertOk();
+    }
+
+    public function test_a_key_stops_working_the_day_after_it_expires(): void
+    {
+        $key = $this->keyExpiring('2026-09-01');
+
+        $this->travelTo('2026-09-02 12:00:00');
+
+        $this->withToken($key)->getJson('/api/v1/clients')->assertUnauthorized();
+    }
+
+    private function keyExpiring(string $date): string
+    {
+        config(['app.display_timezone' => 'Europe/Berlin']);
+        $this->travelTo('2026-08-01 10:00:00');
+
+        $this->actingAs(User::factory()->create())
+            ->post('/api-keys', ['name' => 'Temporary', 'expires_at' => $date]);
+
+        $key = session('apiKey');
+
+        // Sanctum's guard consults the web guard before looking at the token, so the
+        // session left behind by actingAs would authenticate the later request on its
+        // own and the expiry would never be reached.
+        $this->app['auth']->forgetGuards();
+        $this->flushSession();
+
+        return $key;
+    }
+
     public function test_destroy_revokes_a_key(): void
     {
         $user = User::factory()->create();

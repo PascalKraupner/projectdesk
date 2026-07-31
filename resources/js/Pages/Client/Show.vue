@@ -15,7 +15,8 @@ import {
 } from '@/Components/ui/alert-dialog';
 import { Input } from '@/Components/ui/input';
 import ShareLinkDialog from '@/Components/ShareLinkDialog.vue';
-import { Copy, Pencil, Plus, RotateCcw, Share2 } from 'lucide-vue-next';
+import TimesheetExportDialog from '@/Components/TimesheetExportDialog.vue';
+import { Copy, FileText, Pencil, Plus, RotateCcw, Share2 } from 'lucide-vue-next';
 import { formatDuration } from '@/lib/time';
 import { formatMoney, amountFromSeconds } from '@/lib/money';
 import { statusClass } from '@/lib/projectStatus';
@@ -30,6 +31,7 @@ const props = defineProps({
 const shareDialogOpen = ref(false);
 const shareDialogMode = ref('create');
 const copyState = ref('idle');
+const timesheetDialogOpen = ref(false);
 
 const openCreateShare = () => {
     shareDialogMode.value = 'create';
@@ -95,6 +97,10 @@ const destroyProject = (project) => {
                     {{ client.name }}
                 </h2>
                 <div class="flex items-center gap-3">
+                    <Button variant="outline" size="sm" @click="timesheetDialogOpen = true">
+                        <FileText class="mr-1 h-4 w-4" />
+                        Timesheet
+                    </Button>
                     <Button as-child variant="outline" size="sm">
                         <Link :href="route('clients.edit', client.id)">
                             <Pencil class="mr-1 h-4 w-4" />
@@ -323,6 +329,12 @@ const destroyProject = (project) => {
             :client-id="client.id"
             :mode="shareDialogMode"
             :current-expires-at="share_expires_at"
+        />
+
+        <TimesheetExportDialog
+            v-model:open="timesheetDialogOpen"
+            route-name="clients.timesheet"
+            :route-params="{ client: client.id }"
         />
     </AuthenticatedLayout>
 </template>

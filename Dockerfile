@@ -74,6 +74,7 @@ RUN mkdir -p storage/framework/cache/data \
              storage/framework/testing \
              storage/logs \
              storage/app/public \
+             storage/fonts \
              bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
     && php artisan package:discover --ansi

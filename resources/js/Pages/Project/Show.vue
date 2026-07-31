@@ -15,7 +15,8 @@ import {
 import { ProjectStatus } from '@/Enums/ProjectStatus';
 import { Input } from '@/Components/ui/input';
 import ManualTimeEntryDialog from '@/Components/ManualTimeEntryDialog.vue';
-import { Download, Pause, Pencil, Play, Plus, Square, Trash2 } from 'lucide-vue-next';
+import TimesheetExportDialog from '@/Components/TimesheetExportDialog.vue';
+import { Download, FileText, Pause, Pencil, Play, Plus, Square, Trash2 } from 'lucide-vue-next';
 import { formatDuration, liveSeconds as computeLiveSeconds } from '@/lib/time';
 import { statusClass } from '@/lib/projectStatus';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
@@ -165,6 +166,7 @@ const destroyProject = () => {
 
 const manualDialogOpen = ref(false);
 const manualDialogLog = ref(null);
+const timesheetDialogOpen = ref(false);
 
 const openAddEntry = () => {
     manualDialogLog.value = null;
@@ -200,10 +202,14 @@ const openEditEntry = (log) => {
                     >
                         {{ project.client.name }}
                     </Link>
-                    <Button as-child variant="outline" size="sm" title="Export time logs as CSV">
+                    <Button variant="outline" size="sm" @click="timesheetDialogOpen = true">
+                        <FileText class="mr-1 h-4 w-4" />
+                        Timesheet
+                    </Button>
+                    <Button as-child variant="outline" size="sm" title="Export all completed time logs as CSV">
                         <a :href="route('time-logs.export', project.id)">
                             <Download class="mr-1 h-4 w-4" />
-                            Export
+                            CSV
                         </a>
                     </Button>
                     <Button as-child variant="outline" size="sm">
@@ -486,6 +492,12 @@ const openEditEntry = (log) => {
             v-model:open="manualDialogOpen"
             :project-id="project.id"
             :log="manualDialogLog"
+        />
+
+        <TimesheetExportDialog
+            v-model:open="timesheetDialogOpen"
+            route-name="projects.timesheet"
+            :route-params="{ project: project.id }"
         />
     </AuthenticatedLayout>
 </template>

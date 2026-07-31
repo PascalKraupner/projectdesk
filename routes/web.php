@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TimeLogController;
+use App\Http\Controllers\TimesheetController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/share/clients/{client}', [ClientShareController::class, 'show'])
@@ -17,8 +18,10 @@ Route::middleware('auth')->group(function () {
     Route::resource('clients', ClientController::class);
     Route::post('/clients/{client}/share', [ClientShareController::class, 'store'])->name('clients.share.store');
     Route::delete('/clients/{client}/share', [ClientShareController::class, 'destroy'])->name('clients.share.destroy');
+    Route::get('/clients/{client}/timesheet.pdf', [TimesheetController::class, 'client'])->name('clients.timesheet');
 
     Route::resource('projects', ProjectController::class);
+    Route::get('/projects/{project}/timesheet.pdf', [TimesheetController::class, 'project'])->name('projects.timesheet');
 
     Route::get('/projects/{project}/time-logs/export.csv', [TimeLogController::class, 'export'])->name('time-logs.export');
     Route::post('/projects/{project}/time-logs', [TimeLogController::class, 'store'])->name('time-logs.store');

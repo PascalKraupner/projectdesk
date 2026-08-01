@@ -75,6 +75,7 @@ class InvoiceController extends Controller
                 'number' => $invoice->number,
                 'status' => $invoice->status->value,
                 'editable' => $invoice->status->isEditable(),
+                'discardable' => $this->invoiceService->isDiscardable($invoice),
                 'issue_date' => $invoice->issue_date->toDateString(),
                 'due_date' => $invoice->due_date->toDateString(),
                 'payment_terms_days' => $invoice->payment_terms_days,
@@ -131,6 +132,13 @@ class InvoiceController extends Controller
         $this->invoiceService->cancel($invoice);
 
         return back();
+    }
+
+    public function destroy(Invoice $invoice): RedirectResponse
+    {
+        $this->invoiceService->discard($invoice);
+
+        return redirect()->route('invoices.index');
     }
 
     public function pdf(Invoice $invoice): HttpResponse

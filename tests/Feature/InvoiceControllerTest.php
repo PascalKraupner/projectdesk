@@ -9,6 +9,7 @@ use App\Models\InvoiceItem;
 use App\Models\Project;
 use App\Models\TimeLog;
 use App\Models\User;
+use App\Services\InvoiceNumberService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -296,5 +297,81 @@ class InvoiceControllerTest extends TestCase
         );
         $this->assertStringStartsWith('%PDF-', $response->getContent());
         $this->assertStringContainsString('%%EOF', $response->getContent());
+    }
+
+    private function draftFromTime(Client $client): Invoice
+    {
+        $this->actingAs($this->user())->post('/invoices', [
+            'client_id' => $client->id,
+            'from' => '2026-07-01',
+            'to' => '2026-07-31',
+        ])->assertSessionHasNoErrors();
+
+        return Invoice::orderByDesc('number_sequence')->firstOrFail();
+    }
+
+    public function test_the_newest_draft_can_be_discarded_and_gives_its_number_back(): void
+    {
+        $invoice = $this->draftFromTime($this->billableClientWithTime());
+        $this->assertSame('R0000001', $invoice->number);
+
+        $this->actingAs($this->user())
+            ->delete("/invoices/{$invoice->id}")
+            ->assertRedirect('/invoices');
+
+        $this->assertDatabaseCount('invoices', 0);
+        $this->assertDatabaseCount('invoice_items', 0);
+        $this->assertSame('R0000001', app(InvoiceNumberService::class)->peek());
+    }
+
+    public function test_a_draft_that_is_not_the_newest_cannot_be_discarded(): void
+    {
+        $first = $this->draftFromTime($this->billableClientWithTime());
+        $second = $this->draftFromTime($this->billableClientWithTime());
+
+        $this->assertSame(['R0000001', 'R0000002'], [$first->number, $second->number]);
+
+        $this->actingAs($this->user())
+            ->deleteJson("/invoices/{$first->id}")
+            ->assertStatus(409);
+
+        $this->assertNotNull($first->fresh());
+    }
+
+    public function test_an_issued_invoice_cannot_be_discarded(): void
+    {
+        $invoice = $this->draftFromTime($this->billableClientWithTime());
+        $this->actingAs($this->user())->patch("/invoices/{$invoice->id}/issue");
+
+        $this->actingAs($this->user())
+            ->deleteJson("/invoices/{$invoice->id}")
+            ->assertStatus(409);
+
+        $this->assertNotNull($invoice->fresh());
+    }
+
+    public function test_show_flags_whether_the_invoice_can_be_discarded(): void
+    {
+        $invoice = $this->draftFromTime($this->billableClientWithTime());
+
+        $this->actingAs($this->user())->get("/invoices/{$invoice->id}")
+            ->assertInertia(fn ($page) => $page->where('invoice.discardable', true));
+
+        $this->actingAs($this->user())->patch("/invoices/{$invoice->id}/issue");
+
+        $this->actingAs($this->user())->get("/invoices/{$invoice->id}")
+            ->assertInertia(fn ($page) => $page->where('invoice.discardable', false));
+    }
+
+    public function test_discarding_then_creating_again_reuses_the_number(): void
+    {
+        $client = $this->billableClientWithTime();
+        $first = $this->draftFromTime($client);
+
+        $this->actingAs($this->user())->delete("/invoices/{$first->id}");
+
+        $second = $this->draftFromTime($client);
+
+        $this->assertSame('R0000001', $second->number);
     }
 }

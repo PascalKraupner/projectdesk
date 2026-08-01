@@ -31,6 +31,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/invoices/{invoice}/issue', [InvoiceController::class, 'issue'])->name('invoices.issue');
     Route::patch('/invoices/{invoice}/pay', [InvoiceController::class, 'pay'])->name('invoices.pay');
     Route::patch('/invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
+    Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
     Route::get('/invoices/{invoice}/download.pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
 
     Route::post('/invoices/{invoice}/items', [InvoiceItemController::class, 'store'])->name('invoice-items.store');

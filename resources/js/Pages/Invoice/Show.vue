@@ -90,6 +90,10 @@ const addItem = () => {
     });
 };
 
+const discard = () => {
+    router.delete(route('invoices.destroy', props.invoice.id));
+};
+
 const transition = (action) => {
     router.patch(route(`invoices.${action}`, props.invoice.id), {}, { preserveScroll: true });
 };
@@ -118,7 +122,28 @@ const transition = (action) => {
                     </Button>
                     <Button v-if="isDraft" size="sm" @click="transition('issue')">Issue</Button>
                     <Button v-if="isIssued" size="sm" @click="transition('pay')">Mark paid</Button>
-                    <AlertDialog v-if="!isCancelled">
+                    <AlertDialog v-if="invoice.discardable">
+                        <AlertDialogTrigger as-child>
+                            <Button variant="ghost" size="sm" class="text-destructive hover:text-destructive dark:text-red-400 dark:hover:text-red-300">
+                                Discard draft
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Discard {{ invoice.number }}?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    The draft is removed and {{ invoice.number }} becomes available
+                                    again. Only possible because nothing has been issued and this is
+                                    the newest number.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Keep it</AlertDialogCancel>
+                                <AlertDialogAction @click="discard">Discard</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    <AlertDialog v-else-if="!isCancelled">
                         <AlertDialogTrigger as-child>
                             <Button variant="ghost" size="sm" class="text-destructive hover:text-destructive dark:text-red-400 dark:hover:text-red-300">
                                 Cancel invoice

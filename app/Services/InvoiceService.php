@@ -184,6 +184,47 @@ class InvoiceService
         return $this->transition($invoice, InvoiceStatus::Cancelled, 'cancelled_at');
     }
 
+    /**
+     * Only the newest draft may be discarded outright. Removing any other one
+     * would leave a hole in the sequence, which is what cancelling exists for.
+     */
+    public function isDiscardable(Invoice $invoice): bool
+    {
+        if ($invoice->status !== InvoiceStatus::Draft) {
+            return false;
+        }
+
+        $prefix = (string) config('invoice.number.prefix');
+
+        if (! str_starts_with($invoice->number, $prefix)) {
+            return false;
+        }
+
+        $next = DB::table('invoice_number_sequences')->where('prefix', $prefix)->value('next_number');
+
+        return $next !== null && $invoice->number_sequence === (int) $next - 1;
+    }
+
+    public function discard(Invoice $invoice): void
+    {
+        if (! $this->isDiscardable($invoice)) {
+            throw new InvoiceStateException(
+                "Invoice {$invoice->number} cannot be discarded, only cancelled: it is either not a draft or not the newest number."
+            );
+        }
+
+        DB::transaction(function () use ($invoice) {
+            $sequence = $invoice->number_sequence;
+            $prefix = (string) config('invoice.number.prefix');
+
+            $invoice->delete();
+
+            DB::table('invoice_number_sequences')
+                ->where('prefix', $prefix)
+                ->update(['next_number' => $sequence, 'updated_at' => now()]);
+        });
+    }
+
     private function create(Client $client, ?Project $project, CarbonImmutable $from, CarbonImmutable $to): Invoice
     {
         $this->assertBillable($client);

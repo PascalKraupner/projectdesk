@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Client;
+use App\Models\Project;
+use App\Models\TimeLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -25,8 +27,8 @@ class ClientControllerTest extends TestCase
     {
         $user = User::factory()->create();
         $client = Client::factory()->create();
-        $project = \App\Models\Project::factory()->create(['client_id' => $client->id]);
-        \App\Models\TimeLog::factory()->count(2)->create([
+        $project = Project::factory()->create(['client_id' => $client->id]);
+        TimeLog::factory()->count(2)->create([
             'project_id' => $project->id,
             'duration_seconds' => 900,
         ]);
@@ -172,8 +174,8 @@ class ClientControllerTest extends TestCase
     {
         $user = User::factory()->create();
         $client = Client::factory()->create();
-        $project = \App\Models\Project::factory()->create(['client_id' => $client->id]);
-        \App\Models\TimeLog::factory()->create([
+        $project = Project::factory()->create(['client_id' => $client->id]);
+        TimeLog::factory()->create([
             'project_id' => $project->id,
             'duration_seconds' => 1800,
             'started_at' => now()->subHour(),
@@ -235,5 +237,44 @@ class ClientControllerTest extends TestCase
         $this->get('/clients')->assertRedirect('/login');
         $this->get('/clients/create')->assertRedirect('/login');
         $this->post('/clients', [])->assertRedirect('/login');
+    }
+
+    public function test_the_billing_address_can_be_saved_and_edited(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post('/clients', [
+            'name' => 'MÜNCH GmbH',
+            'contact_person' => 'Markus Petershofen',
+            'street' => 'Würzburger Straße 7',
+            'postal_code' => '97753',
+            'city' => 'Karlstadt',
+            'vat_id' => 'DE811933977',
+            'hourly_rate' => 80,
+            'currency' => 'EUR',
+        ])->assertSessionHasNoErrors();
+
+        $client = Client::firstOrFail();
+        $this->assertSame('Würzburger Straße 7', $client->street);
+        $this->assertSame('97753', $client->postal_code);
+        $this->assertSame('DE811933977', $client->vat_id);
+
+        $this->actingAs($user)->patch("/clients/{$client->id}", [
+            'name' => 'MÜNCH GmbH',
+            'city' => 'Würzburg',
+            'currency' => 'EUR',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('Würzburg', $client->fresh()->city);
+    }
+
+    public function test_the_edit_form_receives_the_billing_address(): void
+    {
+        $client = Client::factory()->billable()->create(['city' => 'Karlstadt']);
+
+        $this->actingAs(User::factory()->create())
+            ->get("/clients/{$client->id}/edit")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('client.city', 'Karlstadt'));
     }
 }

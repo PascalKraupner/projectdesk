@@ -16,6 +16,12 @@ const props = defineProps({
 const form = useForm({
     name: '',
     email: '',
+    contact_person: '',
+    street: '',
+    postal_code: '',
+    city: '',
+    country: '',
+    vat_id: '',
     hourly_rate: '',
     currency: props.currencies[0]?.value ?? 'EUR',
 });
@@ -63,6 +69,51 @@ const submit = () => {
                             type="email"
                         />
                         <InputError :message="form.errors.email" />
+                    </div>
+
+                    <div class="space-y-2 border-t border-border pt-6">
+                        <Label class="text-base">Billing address</Label>
+                        <p class="text-xs text-muted-foreground">
+                            Required on invoices by § 34a UStDV.
+                        </p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label for="contact_person">Contact person</Label>
+                        <Input id="contact_person" v-model="form.contact_person" type="text" />
+                        <InputError :message="form.errors.contact_person" />
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label for="street">Street</Label>
+                        <Input id="street" v-model="form.street" type="text" />
+                        <InputError :message="form.errors.street" />
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="space-y-2">
+                            <Label for="postal_code">Postal code</Label>
+                            <Input id="postal_code" v-model="form.postal_code" type="text" />
+                            <InputError :message="form.errors.postal_code" />
+                        </div>
+                        <div class="col-span-2 space-y-2">
+                            <Label for="city">City</Label>
+                            <Input id="city" v-model="form.city" type="text" />
+                            <InputError :message="form.errors.city" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <Label for="country">Country</Label>
+                            <Input id="country" v-model="form.country" type="text" placeholder="Only if not Germany" />
+                            <InputError :message="form.errors.country" />
+                        </div>
+                        <div class="space-y-2">
+                            <Label for="vat_id">VAT ID</Label>
+                            <Input id="vat_id" v-model="form.vat_id" type="text" />
+                            <InputError :message="form.errors.vat_id" />
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-3 gap-4">

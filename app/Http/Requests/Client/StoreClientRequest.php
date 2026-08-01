@@ -22,6 +22,12 @@ class StoreClientRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255', 'unique:clients,email'],
+            'contact_person' => ['nullable', 'string', 'max:255'],
+            'street' => ['nullable', 'string', 'max:255'],
+            'postal_code' => ['nullable', 'string', 'max:32'],
+            'city' => ['nullable', 'string', 'max:255'],
+            'country' => ['nullable', 'string', 'max:255'],
+            'vat_id' => ['nullable', 'string', 'max:32'],
             'hourly_rate' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
             'currency' => ['required', Rule::in(array_column(Currency::cases(), 'value'))],
         ];

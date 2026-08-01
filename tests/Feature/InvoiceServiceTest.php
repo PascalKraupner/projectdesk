@@ -450,4 +450,41 @@ class InvoiceServiceTest extends TestCase
         $this->assertSame('R0000042', $invoice->number);
         $this->assertSame('2026-10-01', $invoice->due_date->toDateString());
     }
+
+    public function test_a_wider_range_still_reports_an_already_invoiced_month(): void
+    {
+        $client = Client::factory()->billable()->create();
+        $project = Project::factory()->create(['client_id' => $client->id]);
+        $this->logHours($project, '2026-07-10 09:00:00', 3600);
+
+        [$from, $to] = $this->july();
+        $july = $this->service()->createForClient($client, $from, $to);
+
+        // Picking June through August must still surface the July invoice.
+        $wide = $this->service()->overlapping(
+            $client,
+            CarbonImmutable::parse('2026-06-01', self::TZ)->startOfDay(),
+            CarbonImmutable::parse('2026-08-31', self::TZ)->endOfDay(),
+        );
+
+        $this->assertTrue($wide->contains($july));
+    }
+
+    public function test_a_range_before_any_invoice_reports_nothing(): void
+    {
+        $client = Client::factory()->billable()->create();
+        $project = Project::factory()->create(['client_id' => $client->id]);
+        $this->logHours($project, '2026-07-10 09:00:00', 3600);
+
+        [$from, $to] = $this->july();
+        $this->service()->createForClient($client, $from, $to);
+
+        $june = $this->service()->overlapping(
+            $client,
+            CarbonImmutable::parse('2026-06-01', self::TZ)->startOfDay(),
+            CarbonImmutable::parse('2026-06-30', self::TZ)->endOfDay(),
+        );
+
+        $this->assertTrue($june->isEmpty());
+    }
 }

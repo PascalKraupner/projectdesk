@@ -15,6 +15,12 @@ class Client extends Model
     protected $fillable = [
         'name',
         'email',
+        'contact_person',
+        'street',
+        'postal_code',
+        'city',
+        'country',
+        'vat_id',
         'hourly_rate',
         'currency',
         'share_token',
@@ -38,5 +44,10 @@ class Client extends Model
     public function timeLogs(): HasManyThrough
     {
         return $this->hasManyThrough(TimeLog::class, Project::class);
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
     }
 }

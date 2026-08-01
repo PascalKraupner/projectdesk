@@ -16,7 +16,8 @@ import {
 import { Input } from '@/Components/ui/input';
 import ShareLinkDialog from '@/Components/ShareLinkDialog.vue';
 import TimesheetExportDialog from '@/Components/TimesheetExportDialog.vue';
-import { Copy, FileText, Pencil, Plus, RotateCcw, Share2 } from 'lucide-vue-next';
+import InvoiceCreateDialog from '@/Components/InvoiceCreateDialog.vue';
+import { Copy, FileText, Pencil, Plus, Receipt, RotateCcw, Share2 } from 'lucide-vue-next';
 import { formatDuration } from '@/lib/time';
 import { formatMoney, amountFromSeconds } from '@/lib/money';
 import { statusClass } from '@/lib/projectStatus';
@@ -32,6 +33,7 @@ const shareDialogOpen = ref(false);
 const shareDialogMode = ref('create');
 const copyState = ref('idle');
 const timesheetDialogOpen = ref(false);
+const invoiceDialogOpen = ref(false);
 
 const openCreateShare = () => {
     shareDialogMode.value = 'create';
@@ -97,6 +99,10 @@ const destroyProject = (project) => {
                     {{ client.name }}
                 </h2>
                 <div class="flex items-center gap-3">
+                    <Button variant="outline" size="sm" @click="invoiceDialogOpen = true">
+                        <Receipt class="mr-1 h-4 w-4" />
+                        Invoice
+                    </Button>
                     <Button variant="outline" size="sm" @click="timesheetDialogOpen = true">
                         <FileText class="mr-1 h-4 w-4" />
                         Timesheet
@@ -336,5 +342,7 @@ const destroyProject = (project) => {
             route-name="clients.timesheet"
             :route-params="{ client: client.id }"
         />
+
+        <InvoiceCreateDialog v-model:open="invoiceDialogOpen" :client-id="client.id" />
     </AuthenticatedLayout>
 </template>

@@ -15,4 +15,16 @@ class ClientFactory extends Factory
             'email' => fake()->unique()->companyEmail(),
         ];
     }
+
+    public function billable(float $hourlyRate = 80.00): static
+    {
+        return $this->state(fn () => [
+            'hourly_rate' => $hourlyRate,
+            'currency' => 'EUR',
+            'contact_person' => fake()->name(),
+            'street' => fake()->streetAddress(),
+            'postal_code' => fake()->postcode(),
+            'city' => fake()->city(),
+        ]);
+    }
 }

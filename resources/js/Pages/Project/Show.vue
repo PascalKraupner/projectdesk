@@ -16,7 +16,8 @@ import { ProjectStatus } from '@/Enums/ProjectStatus';
 import { Input } from '@/Components/ui/input';
 import ManualTimeEntryDialog from '@/Components/ManualTimeEntryDialog.vue';
 import TimesheetExportDialog from '@/Components/TimesheetExportDialog.vue';
-import { Download, FileText, Pause, Pencil, Play, Plus, Square, Trash2 } from 'lucide-vue-next';
+import InvoiceCreateDialog from '@/Components/InvoiceCreateDialog.vue';
+import { Download, FileText, Pause, Pencil, Play, Plus, Receipt, Square, Trash2 } from 'lucide-vue-next';
 import { formatDuration, liveSeconds as computeLiveSeconds } from '@/lib/time';
 import { statusClass } from '@/lib/projectStatus';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
@@ -167,6 +168,7 @@ const destroyProject = () => {
 const manualDialogOpen = ref(false);
 const manualDialogLog = ref(null);
 const timesheetDialogOpen = ref(false);
+const invoiceDialogOpen = ref(false);
 
 const openAddEntry = () => {
     manualDialogLog.value = null;
@@ -202,6 +204,10 @@ const openEditEntry = (log) => {
                     >
                         {{ project.client.name }}
                     </Link>
+                    <Button variant="outline" size="sm" @click="invoiceDialogOpen = true">
+                        <Receipt class="mr-1 h-4 w-4" />
+                        Invoice
+                    </Button>
                     <Button variant="outline" size="sm" @click="timesheetDialogOpen = true">
                         <FileText class="mr-1 h-4 w-4" />
                         Timesheet
@@ -499,5 +505,7 @@ const openEditEntry = (log) => {
             route-name="projects.timesheet"
             :route-params="{ project: project.id }"
         />
+
+        <InvoiceCreateDialog v-model:open="invoiceDialogOpen" :project-id="project.id" />
     </AuthenticatedLayout>
 </template>

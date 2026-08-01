@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\InvoiceStateException;
 use App\Exceptions\TimerConflictException;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Auth\Middleware\Authorize;
@@ -65,6 +66,12 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         $exceptions->render(function (TimerConflictException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json(['message' => $e->getMessage()], 409);
+            }
+        });
+
+        $exceptions->render(function (InvoiceStateException $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return response()->json(['message' => $e->getMessage()], 409);
             }

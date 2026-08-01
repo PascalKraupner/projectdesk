@@ -4,6 +4,8 @@ use App\Http\Controllers\ApiKeyController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ClientShareController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\InvoiceItemController;
 use App\Http\Controllers\OpenApiController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
@@ -21,6 +23,19 @@ Route::middleware('auth')->group(function () {
     Route::post('/clients/{client}/share', [ClientShareController::class, 'store'])->name('clients.share.store');
     Route::delete('/clients/{client}/share', [ClientShareController::class, 'destroy'])->name('clients.share.destroy');
     Route::get('/clients/{client}/timesheet.pdf', [TimesheetController::class, 'client'])->name('clients.timesheet');
+
+    Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+    Route::post('/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+    Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
+    Route::patch('/invoices/{invoice}', [InvoiceController::class, 'update'])->name('invoices.update');
+    Route::patch('/invoices/{invoice}/issue', [InvoiceController::class, 'issue'])->name('invoices.issue');
+    Route::patch('/invoices/{invoice}/pay', [InvoiceController::class, 'pay'])->name('invoices.pay');
+    Route::patch('/invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
+    Route::get('/invoices/{invoice}/download.pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
+
+    Route::post('/invoices/{invoice}/items', [InvoiceItemController::class, 'store'])->name('invoice-items.store');
+    Route::patch('/invoice-items/{invoiceItem}', [InvoiceItemController::class, 'update'])->name('invoice-items.update');
+    Route::delete('/invoice-items/{invoiceItem}', [InvoiceItemController::class, 'destroy'])->name('invoice-items.destroy');
 
     Route::resource('projects', ProjectController::class);
     Route::get('/projects/{project}/timesheet.pdf', [TimesheetController::class, 'project'])->name('projects.timesheet');

@@ -42,6 +42,7 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 // Plaintext API key, flashed once right after creation and never stored.
                 'apiKey' => $request->session()->get('apiKey'),
+                'warning' => $request->session()->get('warning'),
             ],
         ];
     }

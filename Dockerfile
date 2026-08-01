@@ -62,6 +62,13 @@ RUN chmod +x /usr/local/bin/entrypoint.sh \
     && mkdir -p /run/nginx \
     && adduser -D -H -u 1000 -s /bin/sh www-data 2>/dev/null || true
 
+RUN mkdir -p /var/cache/nginx/client_temp \
+             /var/cache/nginx/fastcgi_temp \
+             /var/cache/nginx/proxy_temp \
+             /var/cache/nginx/uwsgi_temp \
+             /var/cache/nginx/scgi_temp \
+    && chown -R www-data:www-data /var/cache/nginx
+
 WORKDIR /var/www/html
 
 COPY --chown=www-data:www-data . .

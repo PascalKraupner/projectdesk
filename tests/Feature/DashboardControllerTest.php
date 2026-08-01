@@ -16,6 +16,11 @@ class DashboardControllerTest extends TestCase
 
     public function test_dashboard_returns_aggregate_stats(): void
     {
+        // Pinned to a Wednesday mid-month. On the first days of a month
+        // startOfWeek() falls into the previous one, so the week's log stopped
+        // counting toward secondsThisMonth and this test failed by the calendar.
+        $this->travelTo('2026-08-12 09:00:00');
+
         $user = User::factory()->create();
 
         Client::factory()->count(2)->create();
@@ -48,8 +53,8 @@ class DashboardControllerTest extends TestCase
                 ->where('totalClients', fn ($v) => $v >= 2)
                 ->where('totalProjects', fn ($v) => $v >= 3)
                 ->where('activeProjects', fn ($v) => $v >= 2)
-                ->where('secondsThisWeek', fn ($v) => $v >= 1800)
-                ->where('secondsThisMonth', fn ($v) => $v >= 5400)
+                ->where('secondsThisWeek', 1800)
+                ->where('secondsThisMonth', 5400)
                 ->has('topProjects')
                 ->has('topClients')
         );

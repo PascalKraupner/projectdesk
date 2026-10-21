@@ -31,6 +31,13 @@ RUN npm run build
 # ---- Runtime ------------------------------------------------------------------
 FROM php:8.5-fpm-alpine AS runtime
 
+# Security floor: refuse to build on a base image with a PHP version that has
+# known critical vulnerabilities (PHP2Shell, CVE-2026-109618 / CVE-2026-109619,
+# fixed in 8.5.12). Raise this whenever a PHP security release ships.
+ARG PHP_MIN_VERSION=8.5.12
+RUN php -r 'exit(version_compare(PHP_VERSION, getenv("PHP_MIN_VERSION"), ">=") ? 0 : 1);' \
+    || { echo "PHP $(php -r 'echo PHP_VERSION;') is below the security floor ${PHP_MIN_VERSION}" >&2; exit 1; }
+
 COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
 
 RUN apk add --no-cache nginx supervisor bash tini \

@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # Surfaces new PHP base image tags (security releases) as pull requests.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: daily
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

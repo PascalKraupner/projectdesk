@@ -29,7 +29,7 @@ COPY --from=composer-deps /app/vendor ./vendor
 RUN npm run build
 
 # ---- Runtime ------------------------------------------------------------------
-FROM php:8.5-fpm-alpine AS runtime
+FROM php:8.5.12-fpm-alpine AS runtime
 
 # Security floor: refuse to build on a base image with a PHP version that has
 # known critical vulnerabilities (PHP2Shell, CVE-2026-109618 / CVE-2026-109619,

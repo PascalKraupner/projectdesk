@@ -17,7 +17,7 @@ COPY . .
 RUN composer dump-autoload --no-dev --optimize --classmap-authoritative
 
 # ---- Frontend assets ----------------------------------------------------------
-FROM node:22-alpine AS assets
+FROM node:26-alpine AS assets
 
 WORKDIR /app
 
